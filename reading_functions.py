@@ -1,6 +1,7 @@
 import string
 import yaml
 import os
+import numpy as np
 
 from friendly_data.converters import to_df
 from frictionless.resource import Resource
@@ -33,6 +34,44 @@ def read_spores_data(path_to_spores, slack="slack-10", file_names=None):
     }
     return data
 
+def generate_sim_data(data):
+    spores = [0, 21, 32, 77, 100, 206, 255, 263, 328, 345, 431]
+    """
+    Select 11 SPORES for simulated data
+    0 - ?
+    21 - High onshore
+    32 - No biofuel utilisation (0%)
+    77 - Low PV
+    100 - Low heat electrification
+    206 - High heat electrification
+    255 - Low storage capacity
+    263 - High PV
+    328 - High grid capacity expansion
+    345 - Low grid capacity expansion
+    431 - High storage capacity
+    """
+
+    sim_data = {
+        "2020": {},
+        "2030": {},
+        "2050": {}
+    }
+    for filename in data["2050"].keys():
+        # Filter all data that contains the column "spore" on the selected spores
+        if "spore" in data["2050"][filename].index.names:
+            sim_data["2050"][filename] = data["2050"][filename][spores]
+
+        # Simulate a 2020 and 2030 dataset based on the 2050 dataset and a random factor
+        if data["2050"][filename].dtype == np.float64:
+
+            # Multiply selected spores data for 2050 with a randomising factor between 0 and 0.4
+            sim_data["2030"][filename] = data["2050"][filename][spores] * 0.4 * np.random.random(len(data["2050"][filename][spores]))
+            # Multiply spore 0 data for 2050 with a randomising factor between 0 and 0.1
+            sim_data["2020"][filename] = data["2050"][filename][0] * 0.1 * np.random.random(len(data["2050"][filename][0]))
+        else:
+            sim_data["2030"][filename] = data["2050"][filename]
+            sim_data["2020"][filename] = data["2050"][filename]
+    return sim_data
 
 
 if __name__ == "__main__":
