@@ -2,6 +2,7 @@ import string
 import yaml
 import os
 import numpy as np
+import pandas as pd
 
 from friendly_data.converters import to_df
 from frictionless.resource import Resource
@@ -78,7 +79,7 @@ def generate_sim_data(data):
 if __name__ == "__main__":
 
     paths = {
-        "2050": os.path.join(os.getcwd(), "euro-spores-results-v2022-05-13")
+        "2050": os.path.join(os.getcwd(), "data", "euro-spores-results-v2022-05-13")
     }
     slack = "slack-10"
     files = ["nameplate_capacity", "flow_out_sum"]
