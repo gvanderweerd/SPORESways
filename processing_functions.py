@@ -166,6 +166,35 @@ def get_energy_output(
 
     return pd.Series(output.array, index=index)
 
+def energy_capacity_projection_linear(data, technology, national_growth_linear):
+    capacity_data = get_energy_capacity(data, ELECTRICITY_PRODUCERS, "electricity", "national")
+    capacity_2020 = capacity_data.loc["2020", :, technology, 0].droplevel("spore")
+    capacity_2020 = pd.concat({"linear": capacity_2020}, names=["method"])
+
+    capacity_projected = capacity_2020
+
+    # Calculate projected capacity for all years after 2020 with a 5 year time interval
+    for year in YEARS[1:]:
+        next_interval = capacity_2020.add((int(year) - 2020) * national_growth_linear.div(1000))
+        next_interval = next_interval.rename({"2020": year})
+        capacity_projected = pd.concat([capacity_projected, next_interval])
+
+    return capacity_projected
+
+def energy_capacity_projection_exponential(data, technology, national_growth_exponential):
+    capacity_data = get_energy_capacity(data, ELECTRICITY_PRODUCERS, "electricity", "national")
+    capacity_2020 = capacity_data.loc["2020", :, technology, 0].droplevel("spore")
+    capacity_2020 = pd.concat({"exponential": capacity_2020}, names=["method"])
+
+    capacity_projected = capacity_2020
+
+    # Calculate projected capacity for all years after 2020 with a 5 year time interval
+    for year in YEARS[1:]:
+        next_interval = capacity_2020.multiply(national_growth_exponential ** (int(year) - 2020))
+        next_interval = next_interval.rename({"2020": year})
+        capacity_projected = pd.concat([capacity_projected, next_interval])
+
+    return capacity_projected
 
 if __name__ == "__main__":
     print("test")
