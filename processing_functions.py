@@ -3,6 +3,8 @@ import pandas as pd
 # Import other scripts in this repository
 from main import *
 
+YEARS = range(2010, 2051)
+
 
 def get_energy_capacity_year(
     spores_data, year, technologies, carrier=None, spores=None, normalise=False
@@ -166,35 +168,102 @@ def get_energy_output(
 
     return pd.Series(output.array, index=index)
 
+
 def energy_capacity_projection_linear(data, technology, national_growth_linear):
-    capacity_data = get_energy_capacity(data, ELECTRICITY_PRODUCERS, "electricity", "national")
+    """
+    This function projects linear capacity growth of a specified technology based on constant annual growth specified for each country
+
+    :param data:                        Capacity data as a Series
+    :param technology:                  The technology for which the growth projection is calculated
+    :param national_growth_linear:      The annually installed additional capacity for each country
+    :return:                            A series with the projected capacity values for all years between 2020 and 2030
+    """
+
+    capacity_data = get_energy_capacity(
+        data, ELECTRICITY_PRODUCERS, "electricity", "national"
+    )
     capacity_2020 = capacity_data.loc["2020", :, technology, 0].droplevel("spore")
     capacity_2020 = pd.concat({"linear": capacity_2020}, names=["method"])
 
     capacity_projected = capacity_2020
 
     # Calculate projected capacity for all years after 2020 with a 5 year time interval
-    for year in YEARS[1:]:
-        next_interval = capacity_2020.add((int(year) - 2020) * national_growth_linear.div(1000))
-        next_interval = next_interval.rename({"2020": year})
+    for year in YEARS[10:20]:
+        next_interval = capacity_2020.add(
+            (year - 2020) * national_growth_linear.div(1000)
+        ).dropna()
+        next_interval = next_interval.rename({"2020": str(year)})
         capacity_projected = pd.concat([capacity_projected, next_interval])
 
     return capacity_projected
 
-def energy_capacity_projection_exponential(data, technology, national_growth_exponential):
-    capacity_data = get_energy_capacity(data, ELECTRICITY_PRODUCERS, "electricity", "national")
+
+def energy_capacity_projection_exponential(
+    data, technology, national_growth_exponential
+):
+    """
+    This function projects the exponential capacity growth of a specified technology based on growth factor specified for each country
+
+    :param data:                            Capacity data as a Series
+    :param technology:                      The technology for which the growth projection is calculated
+    :param national_growth_exponential:     The annual growth factors for each country
+    :return:                                A series with the projected capacity values for all years between 2020 and 2030
+    """
+
+    capacity_data = get_energy_capacity(
+        data, ELECTRICITY_PRODUCERS, "electricity", "national"
+    )
     capacity_2020 = capacity_data.loc["2020", :, technology, 0].droplevel("spore")
     capacity_2020 = pd.concat({"exponential": capacity_2020}, names=["method"])
 
     capacity_projected = capacity_2020
 
-    # Calculate projected capacity for all years after 2020 with a 5 year time interval
-    for year in YEARS[1:]:
-        next_interval = capacity_2020.multiply(national_growth_exponential ** (int(year) - 2020))
-        next_interval = next_interval.rename({"2020": year})
+    # Calculate projected capacity for all years between 2020 and 2030 (YEARS = range(2010, 2051))
+    for year in YEARS[10:20]:
+        next_interval = capacity_2020.multiply(
+            national_growth_exponential ** (year - 2020)
+        ).dropna()
+        next_interval = next_interval.rename({"2020": str(year)})
         capacity_projected = pd.concat([capacity_projected, next_interval])
 
     return capacity_projected
+
+
+def get_national_quartile_spores(national_series, technology, region):
+    """
+    This function finds and returns the bottom 25 percentile of spores, the middle 50 percentile of spores, and the top 25 percentile of spores for the years 2030 and 2050. It does so for a given technology in a given region.
+
+    :param national_series:     Input data as a multi-index series that contains values for each combination of indices: "year", "region", "technology"
+    :param technology:          The technology for which to find the bottom, middle, and top spores
+    :param region:              The region for which to find the bottom, middle, and top spores
+    :return:                    Two dictionaries (one for 2030 and one for 2050) each containing "bottom_spores", "middle_spores", and "top_spores"
+    """
+
+    output = {}
+    for year in ["2030", "2050"]:
+        quartiles = (
+            national_series.loc[year]
+            .groupby(["region", "technology"])
+            .quantile(q=[0.25, 0.5, 0.75])
+        )
+        q1, median, q3 = quartiles.loc[region, technology, :]
+
+        s = national_series.loc[year, region, technology, :]
+        mask_1 = s <= q1
+        mask_2 = (s > q1) & (s <= q3)
+        mask_3 = s > q3
+
+        bottom_spores = s.index[mask_1].get_level_values("spore").tolist()
+        interquartile_spores = s.index[mask_2].get_level_values("spore").tolist()
+        top_spores = s.index[mask_3].get_level_values("spore").tolist()
+
+        output[year] = {
+            "bottom_spores": bottom_spores,
+            "middle_spores": interquartile_spores,
+            "top_spores": top_spores,
+        }
+    return output["2030"], output["2050"]
+
 
 if __name__ == "__main__":
     print("test")
