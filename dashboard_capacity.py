@@ -111,7 +111,7 @@ REGION_MAPPING = {
     "SWE_4": "Sweden",
 }
 COUNTRIES = np.unique(list(REGION_MAPPING.values()))
-YEARS = ["2050"]
+YEARS = ["2030", "2050"]
 
 # Defines the technology family to which each technology belongs for technologies in the power sector
 ELECTRICITY_PRODUCERS = {
@@ -138,6 +138,7 @@ HEAT_PRODUCERS = {
     "hp": "Heat pump",
     "methane_boiler": "Boiler",
 }
+SECTORS = ["Power", "Heat"]
 
 """
 Obtaining data
@@ -155,64 +156,92 @@ data = {
     "2050": read_spores_data(paths["2050"], slack, files),
 }
 
-"""
-Make a deicision
-"""
-country = "Netherlands"
-sector = "Power"
 year = "2050"
-#FIXME: replace this by user input as a slider
-if sector == "Power":
-    tech_set = ELECTRICITY_PRODUCERS
-    carrier = "electricity"
-
-"""
-Preparing data
-"""
-national_power_capacities = get_energy_capacity_year(spores_data=data, year=year, technologies=tech_set, carrier=carrier, normalise=True)
-s = national_power_capacities
-# print(s.groupby("region", "technology").agg(["min", "max"]))
-s.name = "capacity"
-df = s.to_frame().reset_index()
+s_heat = get_energy_capacity_year(
+    spores_data=data,
+    year=year,
+    technologies=HEAT_PRODUCERS,
+    carrier="heat",
+    normalise=True,
+)
+s_heat.name = "capacity"
+df_heat = s_heat.to_frame().reset_index()
+s_power = get_energy_capacity_year(
+    spores_data=data,
+    year=year,
+    technologies=ELECTRICITY_PRODUCERS,
+    carrier="electricity",
+    normalise=True,
+)
+s_power.name = "capacity"
+df_power = s_power.to_frame().reset_index()
 
 # Initialize the app
 app = dash.Dash()
 
 # Define the layout of the app
-app.layout = html.Div([
-    # Add a dropdown menu for selecting the region
-    html.Div([
-        dcc.Dropdown(
-            id='region-dropdown',
-            options=[{'label': region, 'value': region} for region in df['region'].unique()],
-            value=df['region'].unique()[0]
-        )
-    ]),
-    # Add a dropdown menu for selecting the year
-    html.Div([
-        dcc.Dropdown(
-            id='year-dropdown',
-            options=[{'label': year, 'value': year} for year in df['year'].unique()],
-            value=df['year'].unique()[0]
-        )
-    ]),
-    # Add a Graph component for displaying the stripplot
-    dcc.Graph(id='stripplot')
-])
+app.layout = html.Div(
+    [
+        # Add a dropdown menu for selecting the region
+        html.Div(
+            [
+                dcc.Dropdown(
+                    id="region-dropdown",
+                    options=[
+                        {"label": region, "value": region} for region in COUNTRIES
+                    ],
+                    value=COUNTRIES[0],
+                )
+            ]
+        ),
+        # Add a dropdown menu for selecting the sector
+        html.Div(
+            [
+                dcc.Dropdown(
+                    id="sector-dropdown",
+                    options=[{"label": sector, "value": sector} for sector in SECTORS],
+                    value=SECTORS[0],
+                )
+            ]
+        ),
+        # Add a dropdown menu for selecting the year
+        html.Div(
+            [
+                dcc.Dropdown(
+                    id="year-dropdown",
+                    options=[{"label": year, "value": year} for year in YEARS],
+                    value=YEARS[1],
+                )
+            ]
+        ),
+        # Add a Graph component for displaying the stripplot
+        dcc.Graph(id="stripplot"),
+    ]
+)
 
 # Define the callback function for updating the stripplot
 @app.callback(
-    dash.dependencies.Output('stripplot', 'figure'),
-    [dash.dependencies.Input('year-dropdown', 'value'),
-     dash.dependencies.Input('region-dropdown', 'value')])
-def update_stripplot(year, region):
+    dash.dependencies.Output("stripplot", "figure"),
+    [
+        dash.dependencies.Input("region-dropdown", "value"),
+        dash.dependencies.Input("sector-dropdown", "value"),
+        dash.dependencies.Input("year-dropdown", "value"),
+    ],
+)
+def update_stripplot(region, sector, year):
+    if sector == "Power":
+        df = df_power
+    else:
+        df = df_heat
+
     # Filter the dataframe by year and region
-    df_filtered = df[(df['year'] == year) & (df['region'] == region)].copy()
+    df_filtered = df[(df["year"] == year) & (df["region"] == region)].copy()
     # Create the stripplot
-    fig = px.strip(df_filtered, x='technology', y='capacity')
-    fig.update_layout(yaxis_title='Capacity [GW]')
+    fig = px.strip(df_filtered, x="technology", y="capacity")
+    fig.update_layout(yaxis_title="Capacity [GW]")
 
     return fig
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app.run_server(debug=True)
