@@ -38,10 +38,7 @@ def get_energy_capacity_year(
 
     if normalise:
         capacity = capacity.div(
-            capacity.groupby(
-                [REGION_MAPPING, technologies, "carriers"],
-                level=["region", "technology", "carriers"],
-            ).max()
+            capacity.groupby(["region", "technology", "carriers"]).max()
         )
 
     if carrier is not None:
@@ -117,10 +114,7 @@ def get_energy_output_year(
 
     if normalise:
         production = production.div(
-            production.groupby(
-                [REGION_MAPPING, technologies, "carriers"],
-                level=["region", "technology", "carriers"],
-            ).max()
+            production.groupby(["region", "technology", "carriers"]).max()
         )
 
     if technologies == PRIMARY_ENERGY_SOURCES:
