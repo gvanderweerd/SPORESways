@@ -179,51 +179,34 @@ df_power = s_power.to_frame().reset_index()
 # Initialize the app
 app = dash.Dash()
 
-# Define the layout of the app
 app.layout = html.Div(
     [
-        # Add a dropdown menu for selecting the region
-        html.Div(
-            [
-                dcc.Dropdown(
-                    id="region-dropdown",
-                    options=[
-                        {"label": region, "value": region} for region in COUNTRIES
-                    ],
-                    value=COUNTRIES[0],
-                )
-            ]
+        # Add a dropdown component for selecting the country
+        dcc.Dropdown(
+            id="region-dropdown",
+            options=[{"label": region, "value": region} for region in COUNTRIES],
+            value=COUNTRIES[0],
         ),
-        # Add a dropdown menu for selecting the sector
-        html.Div(
-            [
-                dcc.Dropdown(
-                    id="sector-dropdown",
-                    options=[{"label": sector, "value": sector} for sector in SECTORS],
-                    value=SECTORS[0],
-                )
-            ]
+        # Add a dropdown component for selecting the sector
+        dcc.Dropdown(
+            id="sector-dropdown",
+            options=[{"label": sector, "value": sector} for sector in SECTORS],
+            value=SECTORS[0],
         ),
-        # Add a dropdown menu for selecting the year
-        html.Div(
-            [
-                dcc.Dropdown(
-                    id="year-dropdown",
-                    options=[{"label": year, "value": year} for year in YEARS],
-                    value=YEARS[1],
-                )
-            ]
+        # Add a dropdown component for selecting the year
+        dcc.Dropdown(
+            id="year-dropdown",
+            options=[{"label": year, "value": year} for year in YEARS],
+            value=YEARS[1],
         ),
-        html.Div(
-            [
-                # Add a Graph component for displaying the stripplot
-                dcc.Graph(id="stripplot", style={"width": "50%"}),
-                # Add a container for the sliders
-                html.Div(id="sliders")
-            ]
-        )
-    ]
+        # Add a Graph component for displaying the stripplot
+        dcc.Graph(id="stripplot"),
+        # Add a container for the sliders
+        html.Div(id="sliders"),
+    ],
+    style={"width": "50%", "margin": "0 auto"},
 )
+
 
 # Define the callback function for updating the stripplot
 @app.callback(
@@ -247,21 +230,26 @@ def update_stripplot(region, sector, year):
     fig.update_layout(yaxis_title="Capacity [GW]")
 
     # Add a slider for each technology
+    # FIXME: everytime the app is reloaded, 7 new sliders are added to the page. Define a function that makes the sliders once
     for technology in df_filtered["technology"].unique():
         print(technology)
-        app.layout.children.append(html.Div([
-            dcc.RangeSlider(
-                id=f"slider-{technology}",
-                min=0,
-                max=1,
-                step=0.01,
-                value=[0, 1],
-                vertical=False
+        app.layout.children.append(
+            html.Div(
+                [
+                    dcc.RangeSlider(
+                        id=f"slider-{technology}",
+                        min=0,
+                        max=1,
+                        step=0.01,
+                        value=[0, 1],
+                        vertical=False,
+                    )
+                ]
             )
-        ]))
+        )
 
     return fig
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server()
