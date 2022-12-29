@@ -214,8 +214,14 @@ app.layout = html.Div(
                 )
             ]
         ),
-        # Add a Graph component for displaying the stripplot
-        dcc.Graph(id="stripplot"),
+        html.Div(
+            [
+                # Add a Graph component for displaying the stripplot
+                dcc.Graph(id="stripplot", style={"width": "50%"}),
+                # Add a container for the sliders
+                html.Div(id="sliders")
+            ]
+        )
     ]
 )
 
@@ -239,6 +245,20 @@ def update_stripplot(region, sector, year):
     # Create the stripplot
     fig = px.strip(df_filtered, x="technology", y="capacity")
     fig.update_layout(yaxis_title="Capacity [GW]")
+
+    # Add a slider for each technology
+    for technology in df_filtered["technology"].unique():
+        print(technology)
+        app.layout.children.append(html.Div([
+            dcc.RangeSlider(
+                id=f"slider-{technology}",
+                min=0,
+                max=1,
+                step=0.01,
+                value=[0, 1],
+                vertical=False
+            )
+        ]))
 
     return fig
 
