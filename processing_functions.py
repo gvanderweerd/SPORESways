@@ -5,6 +5,36 @@ from main import *
 
 YEARS = range(2010, 2051)
 
+def get_storage_capacity_year(
+    spores_data, year, technologies, carrier=None, spores=None, normalise=False
+):
+    cap_data = spores_data[year]["storage_capacity"]
+    if spores is not None:
+        cap_data = cap_data[spores]
+
+    capacity = (
+        cap_data.xs("twh", level="unit")
+        .unstack("spore")
+        .groupby(
+            [REGION_MAPPING, technologies, "carriers"],
+            level=["region", "technology", "carriers"],
+        )
+        .sum()
+        .stack("spore")
+    )
+
+    if normalise:
+        capacity = capacity.div(
+            capacity.groupby(["region", "technology", "carriers"]).max()
+        )
+
+    if carrier is not None:
+        capacity = capacity.xs(carrier, level="carriers")
+
+    # Add the year as an index
+    capacity = pd.concat({year: capacity}, names=["year"])
+
+    return capacity
 
 def get_energy_capacity_year(
     spores_data, year, technologies, carrier=None, spores=None, normalise=False
@@ -67,14 +97,18 @@ def get_energy_capacity(spores_data, technologies, carrier, resolution="continen
             capacity = get_energy_capacity_year(
                 spores_data, year, technologies, carrier
             )
-            index_names = ["year", "region", "technology", "spore"]
         else:
             capacity = (
                 get_energy_capacity_year(spores_data, year, technologies, carrier)
                 .groupby(["year", "technology", "spore"])
                 .sum()
             )
-            index_names = ["year", "technology", "spore"]
+            # Add "Europe" as an index with name "region"
+            capacity = pd.concat({"Europe": capacity}, names=["region"])
+
+        # Make sure the index names
+        index_names = ["year", "region", "technology", "spore"]
+        capacity = capacity.reorder_levels(index_names)
 
         output = output.append(capacity)
         index = pd.MultiIndex.from_tuples(output.index, names=index_names)
@@ -238,7 +272,7 @@ def get_national_quartile_spores(national_series, technology, region):
         quartiles = (
             national_series.loc[year]
             .groupby(["region", "technology"])
-            .quantile(q=[0.25, 0.5, 0.75])
+            .quantile(q=[0.10, 0.5, 0.90])
         )
         q1, median, q3 = quartiles.loc[region, technology, :]
 
