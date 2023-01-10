@@ -9,9 +9,10 @@ from friendly_data.converters import to_df
 from frictionless.resource import Resource
 from frictionless.package import Package
 
-from variables import *
+from global_parameters import *
 from processing_functions import *
 
+INDEX_NAME_ORDER = ["year", "region", "technology", "carriers", "spore"]
 
 def read_spores_data(path_to_spores, slack="slack-10", file_names=None):
     """
@@ -63,7 +64,7 @@ def generate_sim_data(data_2050):
     431 - High storage capacity
     """
 
-    sim_data = {"2020": {}, "2030": {}, "2050": {}}
+    sim_data = {"2030": {}, "2050": {}}
     for filename in data_2050.keys():
         # Simulate a 2020 and 2030 dataset based on the 2050 dataset and a random factor if the file contains numbers as data, else just copy the file
         if data_2050[filename].dtype == np.float64:
@@ -73,23 +74,23 @@ def generate_sim_data(data_2050):
                 * 0.4
                 * np.random.random(len(data_2050[filename][spores]))
             )
-            # Multiply spore 0 data for 2050 with a randomising factor between 0 and 0.1
-            sim_data["2020"][filename] = (
-                data_2050[filename][0]
-                * 0.1
-                * np.random.random(len(data_2050[filename][0]))
-            )
+            # # Multiply spore 0 data for 2050 with a randomising factor between 0 and 0.1
+            # sim_data["2020"][filename] = (
+            #     data_2050[filename][0]
+            #     * 0.1
+            #     * np.random.random(len(data_2050[filename][0]))
+            # )
         else:
             sim_data["2030"][filename] = data_2050[filename]
-            sim_data["2020"][filename] = data_2050[filename]
+            # sim_data["2020"][filename] = data_2050[filename]
 
         if "spore" in data["2050"][filename].index.names:
             # Filter all data that contains the column "spore" on the selected spores
             sim_data["2050"][filename] = data_2050[filename][spores]
-            # Add a column "spore" to the simulated 2020 data and set "spore" to 0 (needed because functions rely on a column with the spore number)
-            sim_data["2020"][filename] = pd.concat(
-                {0: sim_data["2020"][filename]}, names=["spore"]
-            )
+            # # Add a column "spore" to the simulated 2020 data and set "spore" to 0 (needed because functions rely on a column with the spore number)
+            # sim_data["2020"][filename] = pd.concat(
+            #     {0: sim_data["2020"][filename]}, names=["spore"]
+            # )
     return sim_data
 
 def get_power_capacity(spores_data, save_to_csv=False):
@@ -106,28 +107,29 @@ def get_power_capacity(spores_data, save_to_csv=False):
         capacity_data = spores_data.get(year).get(file_name)
         capacity_national = (
             capacity_data.xs("tw", level="unit")
+            .xs("electricity", level="carriers")
             .unstack("spore")
             .groupby(
-                [REGION_MAPPING, ELECTRICITY_PRODUCERS, "carriers"],
-                level=["region", "technology", "carriers"],
+                [REGION_MAPPING, ELECTRICITY_PRODUCERS_SPORES],
+                level=["region", "technology"],
             )
             .sum()
             .stack("spore")
         )
-        # Filter capacity on carrier to avoid double counting of CHP capacity (that outputs multiple carriers)
-        carriers = capacity_national.index.get_level_values("carriers")
-        capacity_national = capacity_national[carriers == "electricity"]
+        # # Filter capacity on carrier to avoid double counting of CHP capacity (that outputs multiple carriers)
+        # carriers = capacity_national.index.get_level_values("carriers")
+        # capacity_national = capacity_national[carriers == "electricity"]
 
         # Add the year as an index
         capacity_national = pd.concat({year: capacity_national}, names=["year"])
 
         # Calculate continental capacity
         capacity_eu = capacity_national.groupby(
-            ["year", "technology", "carriers", "spore"]
+            ["year", "technology", "spore"]
         ).sum()
 
         # Add "Europe" as an index with name "region" and reorder the index levels
-        index_names = ["year", "region", "technology", "carriers", "spore"]
+        index_names = ["year", "region", "technology", "spore"]
         capacity_eu = pd.concat({"Europe": capacity_eu}, names=["region"])
         capacity_eu = capacity_eu.reorder_levels(index_names)
 
@@ -138,7 +140,9 @@ def get_power_capacity(spores_data, save_to_csv=False):
     # Concatenating series changes the MultiIndex to a tuple. These lines changes the Series back to a MultiIndex
     index = pd.MultiIndex.from_tuples(power_capacity.index, names=index_names)
     power_capacity = pd.Series(power_capacity.array, index=index)
-    power_capacity.name = "capacity_tw"
+
+    power_capacity *= 1000
+    power_capacity.name = "capacity_gw"
 
     if save_to_csv:
         power_capacity.to_csv(f"data/power_capacity.csv")
@@ -160,28 +164,29 @@ def get_heat_capacity(spores_data, save_to_csv):
         capacity_data = spores_data.get(year).get(file_name)
         capacity_national = (
             capacity_data.xs("tw", level="unit")
+            .xs("heat", level="carriers")
             .unstack("spore")
             .groupby(
-                [REGION_MAPPING, HEAT_PRODUCERS, "carriers"],
-                level=["region", "technology", "carriers"],
+                [REGION_MAPPING, HEAT_PRODUCERS],
+                level=["region", "technology"],
             )
             .sum()
             .stack("spore")
         )
-        # Filter capacity on carrier to avoid double counting of CHP capacity (that outputs multiple carriers)
-        carriers = capacity_national.index.get_level_values("carriers")
-        capacity_national = capacity_national[carriers == "heat"]
+        # # Filter capacity on carrier to avoid double counting of CHP capacity (that outputs multiple carriers)
+        # carriers = capacity_national.index.get_level_values("carriers")
+        # capacity_national = capacity_national[carriers == "heat"]
 
         # Add the year as an index
         capacity_national = pd.concat({year: capacity_national}, names=["year"])
 
         # Calculate continental capacity
         capacity_eu = capacity_national.groupby(
-            ["year", "technology", "carriers", "spore"]
+            ["year", "technology", "spore"]
         ).sum()
 
         # Add "Europe" as an index with name "region" and reorder the index levels
-        index_names = ["year", "region", "technology", "carriers", "spore"]
+        index_names = ["year", "region", "technology", "spore"]
         capacity_eu = pd.concat({"Europe": capacity_eu}, names=["region"])
         capacity_eu = capacity_eu.reorder_levels(index_names)
 
@@ -192,7 +197,9 @@ def get_heat_capacity(spores_data, save_to_csv):
     # Concatenating series changes the MultiIndex to a tuple. These lines changes the Series back to a MultiIndex
     index = pd.MultiIndex.from_tuples(heat_capacity.index, names=index_names)
     heat_capacity = pd.Series(heat_capacity.array, index=index)
-    heat_capacity.name = "capacity_tw"
+
+    heat_capacity *= 1000
+    heat_capacity.name = "capacity_gw"
 
     if save_to_csv:
         heat_capacity.to_csv(f"data/heat_capacity.csv")
@@ -230,7 +237,7 @@ def get_storage_capacity(spores_data, save_to_csv=False):
         ).sum()
 
         # Add "Europe" as an index with name "region" and reorder the index levels
-        index_names = ["year", "region", "technology", "carriers", "spore"]
+        index_names = INDEX_NAME_ORDER
         capacity_eu = pd.concat({"Europe": capacity_eu}, names=["region"])
         capacity_eu = capacity_eu.reorder_levels(index_names)
 
@@ -274,20 +281,40 @@ def get_grid_capacity(spores_data, expansion_only=False, save_to_csv=False):
         capacity = pd.concat({year: capacity}, names=["year"])
 
         # Make sure the index names are in the correct order
-        index_names = ["year", "importing_region", "exporting_region", "spore"]
+        index_names = ["importing_region", "exporting_region", "year", "spore"]
         capacity = capacity.reorder_levels(index_names)
 
         grid_capacity = grid_capacity.append(capacity)
         index = pd.MultiIndex.from_tuples(grid_capacity.index, names=index_names)
         grid_capacity = pd.Series(grid_capacity.array, index=index)
 
-    grid_capacity.name = "capacity_tw"
+    grid_capacity *= 1000
+    grid_capacity.name = "capacity_gw"
 
     if save_to_csv:
         grid_capacity.to_csv(f"data/{file_name}.csv")
     else:
         return grid_capacity
 
+def get_power_capacity_irenastat(path, save_to_csv=False):
+    #FIXME: make this function compatible with the .csv download (remove first rows and deal with column title difference)
+    s = pd.read_csv(path, index_col=[0, 1, 2, 3], squeeze=True)
+    s = s.rename({"United Kingdom of Great Britain and Northern Ireland": "United Kingdom", "Republic of North Macedonia": "North Macedonia"})
+    s = s.replace("..", 0)
+    s = s.astype(float)
+
+    power_capacity = s.groupby(
+        ["region", ELECTRICITY_PRODUCERS_IRENASTAT, "year"],
+        level=["region", "technology", "year"],
+    ).sum()
+
+    power_capacity /= 1000
+    power_capacity.name = "capacity_gw"
+
+    if save_to_csv:
+        power_capacity.to_csv("data/power_capacity_irenastat.csv")
+    else:
+        return power_capacity
 
 if __name__ == "__main__":
 
@@ -295,6 +322,7 @@ if __name__ == "__main__":
     paths = {
         "2050": os.path.join(os.getcwd(), "data", "euro-spores-results-v2022-05-13"),
         "ember_electricity_data": "data/ember_data/ember_electricitydata_yearly_full_release_long_format-1.csv",
+        "irenastat_2000_2021": "data/historic_power_capacity_mw_irenastat.csv"
     }
     # Define for which cost relaxation we want to read the data
     slack = "slack-10"
@@ -308,41 +336,15 @@ if __name__ == "__main__":
     ]
 
     data = {"2050": read_spores_data(paths["2050"], slack, files)}
-    # Simulating a smaller dataset for 2020, 2030 and 2050
+    # Simulating a smaller dataset for 2030 and 2050
     data = generate_sim_data(data["2050"])
 
-    power = get_power_capacity(spores_data=data, save_to_csv=False)
-    heat = get_heat_capacity(spores_data=data, save_to_csv=False)
-    storage = get_storage_capacity(spores_data=data, save_to_csv=False)
-    grid = get_grid_capacity(spores_data=data, save_to_csv=False)
+    save = False
+    power = get_power_capacity(spores_data=data, save_to_csv=save)
+    heat = get_heat_capacity(spores_data=data, save_to_csv=save)
+    storage = get_storage_capacity(spores_data=data, save_to_csv=save)
+    grid = get_grid_capacity(spores_data=data, save_to_csv=save)
+    grid_expansion = get_grid_capacity(spores_data=data, expansion_only=True, save_to_csv=save)
 
-
-
-
-    df = pd.read_csv(paths["ember_electricity_data"])
-    ember_countries = list(df["Area"].unique())
-
-    print(df)
-    print(df.columns)
-
-    # Check if the dataset from ember-climate.org contains all countries
-    for country in COUNTRIES:
-        if country not in ember_countries:
-            raise Exception(f"{country} does not exist in the ember data")
-
-    # Filter on countries
-    mask = df["Area"].isin(COUNTRIES)
-    df = df[mask]
-
-    # Filter on capacity and check if unit is in [GW]
-    df = df[df["Category"] == "Capacity"]
-    print(df["Unit"].unique())
-    print(df["Subcategory"].unique())
-    print(df["Variable"].unique())
-
-    # TEST case for the Netherlands
-    df_NL = df[df["Area"] == "Netherlands"]
-    df_NL = df_NL[df_NL["Year"] == 2020]
-    pd.set_option('display.max_columns', 100)
-    print(df_NL)
-    # & df["Year"] == 2020
+    power_capacity = pd.read_csv("data/power_capacity.csv", index_col = ["year", "region", "technology", "spore"], squeeze=True)
+    power_capacity_2000_2021 = pd.read_csv("data/power_capacity_irenastat.csv", index_col = ["region", "technology", "year"], squeeze=True)
