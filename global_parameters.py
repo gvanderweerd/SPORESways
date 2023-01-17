@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # Technology sets
 PRIMARY_ENERGY_SOURCES = {
     "waste_supply": "Waste",
@@ -14,7 +15,7 @@ PRIMARY_ENERGY_SOURCES = {
     "natural_gas_supply": "Natural gas",
     "oil_supply": "Oil",
 }
-ELECTRICITY_PRODUCERS = {
+ELECTRICITY_PRODUCERS_SPORES = {
     "open_field_pv": "PV",
     "roof_mounted_pv": "PV",
     "wind_offshore": "Offshore wind",
@@ -28,11 +29,23 @@ ELECTRICITY_PRODUCERS = {
     "nuclear": "Nuclear",
     "biofuel_to_liquids": "Bio to liquids",
 }
+ELECTRICITY_PRODUCERS_IRENASTAT = {
+    "Solar photovoltaic": "PV",
+    "Onshore wind energy": "Onshore wind",
+    "Offshore wind energy": "Offshore wind",
+    "Mixed Hydro Plants": "Hydro",
+    "Renewable hydropower": "Hydro",
+    "Pumped storage": "Hydro",
+    "Nuclear": "Nuclear",
+    "Natural gas": "CCGT",
+}
+
+
 vRES_PRODUCERS = {
     "open_field_pv": "vRES",
     "roof_mounted_pv": "vRES",
     "wind_offshore": "vRES",
-    "wind_onshore": "vRES"
+    "wind_onshore": "vRES",
 }
 HEAT_PRODUCERS = {
     "biofuel_boiler": "Boiler",
@@ -62,9 +75,24 @@ STORAGE_TECHNOLOGIES = {
     "hydro_reservoir": "Hydro storage",
     "pumped_hydro": "Hydro storage",
     "hydrogen_storage": "Hydrogen storage",
-    "methane_storage": "Methane storage"
+    "methane_storage": "Methane storage",
 }
 
+# GAGR estimated by EU Market Outlook for Solar Power (2022-2026) converted to growth factor
+pv_growth_rates_exponential = {
+    "Belgium": 1.13,
+    "France": 1.21,
+    "Germany": 1.18,
+    "Greece": 1.3,
+    "Hungary": 1.23,
+    "Ireland": 1.9,
+    "Italy": 1.17,
+    "Netherlands": 1.2,
+    "Poland": 1.29,
+    "Portugal": 1.36,
+    "Romania": 1.44,
+    "Spain": 1.31,
+}
 
 NUCLEAR_HEAT_MULTIPLIER = 1 / 0.4  # our model uses an efficiency of 40% for nuclear
 
@@ -125,7 +153,7 @@ REGION_MAPPING = {
     "GBR_3": "United Kingdom",
     "GBR_4": "United Kingdom",
     "GBR_5": "United Kingdom",
-    "GBR_6": "United Kingdom",   #Northern Ireland
+    "GBR_6": "United Kingdom",  # Northern Ireland
     "GRC_1": "Greece",
     "GRC_2": "Greece",
     "HRV_1": "Croatia",
