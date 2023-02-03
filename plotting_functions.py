@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
 import seaborn.objects as so
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from main import *
 from global_parameters import *
@@ -17,7 +18,6 @@ circ = np.c_[np.sin(pts) / 2, -np.cos(pts) / 2]
 vert = np.r_[circ, circ[::-1] * 0.7]
 open_circle = mpl.path.Path(vert)
 
-plot_order_years = ["2020", "2025", "2030", "2035", "2040", "2045", "2050"]
 YEARS = range(2010, 2051)
 POWER_TECH_ORDER = [
     "PV",
@@ -119,7 +119,53 @@ def plot_el_production_hubs(
         )
 
 
-def plot_capacity_distribution_country(ax, data, country):
+def plot_capacity_distribution(ax, data, year, country):
+    capacity = data.loc[year, country, :, :]
+    capacity_normalised = capacity.div(capacity.groupby("technology").max())
+    capacity_ranges = capacity.groupby("technology").agg(["min", "max"])
+
+    sns.stripplot(
+        ax=ax,
+        data=capacity_normalised,
+        x="technology",
+        y=capacity_normalised.array,
+        order=POWER_TECH_ORDER,
+        marker=open_circle,
+        color="grey",
+    )
+
+    ax.set_title(
+        f"Capacity distribution of {year} SPORES results for the power sector in {country}"
+    )
+    ax.set_xlabel("")
+    ax.set_ylabel("Normalised capacity")
+    ax.set_xticks(range(len(POWER_TECH_ORDER)))
+    ax.set_xticklabels(POWER_TECH_ORDER, fontsize=10)
+    xticklabels = []
+    for ticklabel in ax.get_xticklabels():
+        technology = ticklabel.get_text()
+
+        if technology in capacity.index.get_level_values("technology").unique():
+            xticklabels.append(
+                f"{technology}\n{capacity_ranges.loc[technology, 'min'].round(2)} - {capacity_ranges.loc[technology, 'max'].round(2)} [GW]"
+            )
+        else:
+            xticklabels.append(f"{technology}\n0.0 - 0.0 [GW]")
+    ax.set_xticklabels(xticklabels, fontsize=10)
+
+    # for spore in [1, 300]:
+    #     spore_capacity = capacity_normalised.loc[:, spore]
+    #     sns.lineplot(
+    #         ax=ax,
+    #         data=spore_capacity,
+    #         x="technology",
+    #         y=spore_capacity.array,
+    #         color="orange",
+    #         label=f"SPORE number: {spore}"
+    #     )
+
+
+def plot_capacity_distribution_2030_2050(ax, data, country):
     capacity = data.loc[:, country, :, :]
     capacity_normalised = capacity.div(capacity.groupby("technology").max())
     capacity_ranges = capacity.groupby("technology").agg(["min", "max"])
@@ -134,7 +180,8 @@ def plot_capacity_distribution_country(ax, data, country):
         hue_order=[2030, 2050],
         jitter=True,
         dodge=True,
-        palette=["orange", "green"],
+        color="grey",
+        # palette=["orange", "green"],
         marker=open_circle,
     )
     ax.set_title(
@@ -155,6 +202,54 @@ def plot_capacity_distribution_country(ax, data, country):
         else:
             xticklabels.append(f"{technology}\n0.0 - 0.0 [GW]")
     ax.set_xticklabels(xticklabels, fontsize=10)
+
+
+def plot_normalised_cluster_map(data, year, region):
+    scaler = MinMaxScaler()
+    all_techs = data.index.get_level_values("technology").unique()
+    data_normalised = pd.DataFrame(
+        scaler.fit_transform(data.unstack("technology")),
+        columns=data.index.get_level_values("technology").unique(),
+    )
+    ranges = data.groupby("technology").agg(["min", "max"])
+
+    # FIXME: arange the order of the technologies such that they are visualised from top to bottom ('power', 'heat', 'grid', 'storage')
+    # FIXME: find out how to set white spacing inbetween sectors such that all power technologies are together but there is a white space between the power technologies and the heat technologies
+    #
+    # Can we use this on row_columns? 'row_columns=df_colors' and chose a cmap that makes the row that is np.nan white
+    # df_colors = pd.DataFrame({"color": np.repeat(1, df_normalised.shape[1])})
+    # df_colors.loc[3, "color"] = np.nan
+
+    cluster_map = sns.clustermap(
+        data=data_normalised.T,
+        method="ward",
+        metric="euclidean",
+        row_cluster=False,
+        cmap="Spectral_r",
+    )
+    # Add figure title
+    cluster_map.fig.suptitle(
+        f"Normalised capacity clustermap of {year} SPORES results for the power sector in {region}"
+    )
+    cluster_map_axis = cluster_map.ax_heatmap
+
+    # Set x and y axis labels
+    cluster_map_axis.set_xlabel("X axis label")
+    cluster_map_axis.set_ylabel("Y axis label")
+
+    cluster_map_axis.set_yticks(range(len(all_techs)))
+    cluster_map_axis.set_yticklabels(all_techs, fontsize=10)
+
+    yticklabels = []
+    # FIXME: add units corresponding to which sector
+    for ticklabel in cluster_map_axis.get_yticklabels():
+        technology = ticklabel.get_text()
+        yticklabels.append(
+            f"{technology} {ranges.loc[technology, 'min']:.1f} - {ranges.loc[technology, 'max']:.1f} [unit]"
+        )
+    yticklabels.sort(reverse=True)
+
+    cluster_map_axis.set_yticklabels(yticklabels)
 
 
 def plot_capacity_pathway(
@@ -328,164 +423,133 @@ def plot_capacity_pathway(
     axs[1].set_xticklabels(xticklabels, fontsize=10)
 
 
-def plot_capacity_pathway_to_quartiles(
-    ax, capacity_2000_2021, capacity_spores, country, technology
-):
-    # Prepare data for capacity pathway plot
-    capacity_2015_2021 = capacity_2000_2021.loc[country, technology, 2015:]
-    spores_2030 = capacity_spores.loc[2030, country, technology, :]
-    spores_2050 = capacity_spores.loc[2050, country, technology, :]
-
-    # Count number of spores in each spores dataset
-    n_spores_2030 = len(spores_2030.index.get_level_values("spore").unique())
-    n_spores_2050 = len(spores_2050.index.get_level_values("spore").unique())
-
-    # Define x-axis for past-, projected-, and spores-capacity data
-    x = np.arange(2015, 2022)
-    x_2021_2030 = np.arange(2021, 2031)
-    x_2021_2050 = np.arange(2021, 2051)
-    x_spores_2030 = [2030] * n_spores_2030
-    x_spores_2050 = [2050] * n_spores_2050
-
-    calculate_quartile_capacities = (
-        lambda spores: spores.groupby(["region", "technology"])
-        .quantile(q=[0.25, 0.5, 0.75])
-        .loc[country, technology, :]
-    )
-    # Calculate capacity values corresponding to first quartile, median, and 3rd quartile for 2030 spores
-    (
-        q1_capacity_2030,
-        median_capacity_2030,
-        q3_capacity_2030,
-    ) = calculate_quartile_capacities(spores_2030)
-    # Calculate capacity values of highest, and lowest capacity spores for 2030 spores
-    min_capacity_2030 = spores_2030.min()
-    max_capacity_2030 = spores_2030.max()
-
-    calculate_growth_factor = lambda capacity, years: (
-        capacity / capacity_2015_2021[-1]
-    ) ** (1 / (years[-1] - years[0]))
-    cagr_max = calculate_growth_factor(max_capacity_2030, x_2021_2030)
-    cagr_q3 = calculate_growth_factor(q3_capacity_2030, x_2021_2030)
-    cagr_median = calculate_growth_factor(median_capacity_2030, x_2021_2030)
-    cagr_q1 = calculate_growth_factor(q1_capacity_2030, x_2021_2030)
-    cagr_min = calculate_growth_factor(min_capacity_2030, x_2021_2030)
-
-    calculate_exponential_growth = lambda growth_factor, years: [
-        capacity_2015_2021[-1] * growth_factor ** (year - years[0]) for year in years
-    ]
-    y_max = calculate_exponential_growth(cagr_max, x_2021_2030)
-    y_q1 = calculate_exponential_growth(cagr_q1, x_2021_2030)
-    y_median = calculate_exponential_growth(cagr_median, x_2021_2030)
-    y_q3 = calculate_exponential_growth(cagr_q3, x_2021_2030)
-    y_min = calculate_exponential_growth(cagr_min, x_2021_2030)
-
-    cagr_table = [
-        [
-            "Top 25% of SPORES",
-            f"{100 * (cagr_q3 - 1):.1f}% - {100 * (cagr_max - 1):.1f}%",
-            f"{y_q3[-1]:.1f} - {y_max[-1]:.1f} [GW]",
-        ],
-        [
-            "Middle 50% of SPORES",
-            f"{100 * (cagr_q1 - 1):.1f}% - {100 * (cagr_q3 - 1):.1f}%",
-            f"{y_q1[-1]:.1f} - {y_q3[-1]:.1f} [GW]",
-        ],
-        [
-            "Bottom 25% of SPORES",
-            f"{100 * (cagr_min - 1):.1f}% - {100 * (cagr_q1 - 1):.1f}%",
-            f"{y_min[-1]:.1f} - {y_q1[-1]:.1f} [GW]",
-        ],
-    ]
-
+def _add_historic_capacity_to_pathway(ax, capacity_historic):
+    # Define the years for which to plot the historic capacity
+    years_historic = list(capacity_historic.index.get_level_values("year").unique())
     # Plot historic capacity (2015-2021)
     sns.lineplot(
         ax=ax,
-        data=capacity_2015_2021,
-        x=x,
-        y=capacity_2015_2021.array,
+        data=capacity_historic,
+        x=years_historic,
+        y=capacity_historic.array,
         label="Historic capacity",
     )
-    # Plot capacity value in 2021
+
+
+def _add_spores_capacity_to_pathway(ax, capacity_spores, year):
+    # Count number of SPORES in capacity spores data
+    n_spores = len(capacity_spores.index.get_level_values("spore").unique())
+    # Define x for capacity SPORES
+    x_spores = [year] * n_spores
+    # Plot capacity SPORES
+    sns.scatterplot(
+        ax=ax,
+        x=x_spores,
+        y=capacity_spores.array,
+        marker=open_circle,
+        color="grey",
+        label=f"SPORES {year}",
+    )
+
+
+def _add_capacity_value_to_pathway(ax, year, value):
+    # Plot black dot on the map of the value that is plotted
+    ax.scatter(x=year, y=value, marker="o", color="black")
+    # Plot capacity value text at x=year, y=value+10
     ax.annotate(
-        xy=(x[-1], capacity_2015_2021[-1]),
-        xytext=(x[-1], capacity_2015_2021[-1] + 100),
-        text=f"{capacity_2015_2021[-1]:.1f} [GW]",
+        xy=(year, value),
+        xytext=(year, value + 10),
+        text=f"{value:.1f} [GW]",
         fontsize=12,
     )
-    ax.scatter(x=x[-1], y=capacity_2015_2021[-1], marker="o", color="black")
-    # Plot exponential growth to the median capacity value in 2030 (2021-2030)
-    sns.lineplot(
-        ax=ax,
-        x=x_2021_2030,
-        y=y_median,
-        linestyle="--",
-        color="orange",
-        label="Exponential growth to median capacity in 2030",
-    )
-    # Plot exponential growth (2021-2030)
-    ax.fill_between(
-        x=x_2021_2030,
-        y1=y_max,
-        y2=y_q3,
-        color="red",
-        alpha=0.25,
-        label="Exponential growth to top 25% of spores in 2030",
-    )
-    ax.fill_between(
-        x=x_2021_2030,
-        y1=y_q3,
-        y2=y_q1,
-        color="orange",
-        alpha=0.25,
-        label="Exponential growth to middle 50% of spores in 2030",
-    )
-    ax.fill_between(
-        x=x_2021_2030,
-        y1=y_q1,
-        y2=y_min,
-        color="green",
-        alpha=0.25,
-        label="Exponential growth to bottom 25% spores in 2030",
-    )
-    # Plot 2030 and 2050 spores
-    sns.scatterplot(
-        ax=ax,
-        x=x_spores_2030,
-        y=spores_2030.array,
-        marker=open_circle,
-        color="grey",
-        label="SPORES 2030",
-    )
-    sns.scatterplot(
-        ax=ax,
-        x=x_spores_2050,
-        y=spores_2050.array,
-        marker=open_circle,
-        color="grey",
-        label="SPORES 2050",
-    )
 
-    # Set figure and axis titles
-    ax.set_title(f"Capacity pathway of {technology} in {country} between 2015 and 2050")
-    ax.set_xlabel("Time [years]")
-    ax.set_ylabel("Capacity [GW]")
-    # ax.set_yscale("log")
+
+def _add_exponential_growth_to_pathway(ax, projections, projection_years):
+    for projection in projections:
+        ax.fill_between(
+            x=projection_years,
+            y1=projection["y1"],
+            y2=projection["y2"],
+            color=projection["color"],
+            label=projection["label"],
+            alpha=0.25,
+        )
+
+
+def _add_decline_to_lockin_capacity_2050(ax, projections):
+    for projection in projections:
+        sns.lineplot(x=years_2030_2050, y=projection, color="grey", linestyle="--")
+
+
+def plot_technology_pathway(
+    ax, capacity_2000_2021, capacity_2030, capacity_2050, country, technology
+):
+    # Prepare data for capacity pathway plot
+    capacity_2000_2021 = capacity_2000_2021.loc[country, technology, 2000:]
+    capacity_2030 = capacity_2030.loc[2030, country, technology, :]
+    capacity_2050 = capacity_2050.loc[2050, country, technology, :]
+    print("pathway test")
+    print(capacity_2050)
+
+    # Add historic capacity
+    _add_historic_capacity_to_pathway(ax=ax, capacity_historic=capacity_2000_2021)
+    # Add 2030 and 2050 SPORES
+    _add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2030, year=2030)
+    _add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2050, year=2050)
+
+    # Add capacity value at x=2021
+    _add_capacity_value_to_pathway(ax=ax, year=2021, value=capacity_2000_2021[-1])
+    # Add min and max capacity values at x=2030
+    _add_capacity_value_to_pathway(ax=ax, year=2030, value=capacity_2030.max())
+    _add_capacity_value_to_pathway(ax=ax, year=2030, value=capacity_2030.min())
+    # Add min and max capacity values at x=2050
+    _add_capacity_value_to_pathway(ax=ax, year=2050, value=capacity_2050.max())
+    _add_capacity_value_to_pathway(ax=ax, year=2050, value=capacity_2050.min())
+
+    """
+    These lines plot 
+    
+    # Calculate projection to 2030
+    projections_2021_2030, info_2030 = projection_to_spores_exponential(start_capacity=capacity_2000_2021[-1], spores_capacity=capacity_2030, years=years_2021_2030)
+    projections_2021_2050, info_2050 = projection_to_spores_exponential(start_capacity=capacity_2000_2021[-1], spores_capacity=capacity_2050, years=years_2021_2050)
+    # Calculate 'lock-in' projetion from 2030 to 2050
+    projections_2030_2050 = projection_lock_in_2030_2050(capacity_2000_2021=capacity_2000_2021, capacity_2021_2030=projections_2021_2030, capacity_2030=capacity_2030, years=years_2030_2050, life_time=ELECTRICITY_PRODUCERS_LIFE.get("PV"))
+    # Add exponential projection from 2021 until 2030
+    _add_exponential_growth_to_pathway(ax=ax, projections=projections_2021_2030, projection_years=years_2021_2030)
+    # # _add_exponential_growth_to_pathway(ax=ax, projections=projections_2021_2050, projection_years=years_2021_2050)
+    # Add lock-in effect from 2030 spores on 2050
+    _add_decline_to_lockin_capacity_2050(ax=ax, projections=projections_2030_2050)
+    """
 
     # Set figure legend
-    ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
+    ax.legend(bbox_to_anchor=(0, 1), loc="upper left")
 
-    # # Add table with CAGR values
-    # ax.table(
-    #     cellText=cagr_table,
-    #     colLabels=[
-    #         "Scenario",
-    #         "Required CAGR between 2021 and 2030",
-    #         "Capacity range in 2030",
-    #     ],
-    #     # bbox_to_anchor=(1, 0.5), loc="upper left"
-    #     bbox=(1, 0.5, 1, 0.4),
-    # )
+
+def plot_boxplot_capacities_2030_2050(spores_2030, spores_2050, region, sector):
+    fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(16, 9))
+    sns.boxplot(ax=axs[0], data=spores_2030.unstack("technology"), orient="h")
+    sns.boxplot(ax=axs[1], data=spores_2050.unstack("technology"), orient="h")
+    axs[0].set_title("2030")
+    axs[1].set_title("2050")
+    axs[1].set_xlabel("Capacity [GW]")
+    fig.suptitle(
+        f"Distribution of 2030 and 2050 SPORES capacities for the {sector} sector in {region}",
+        fontsize=14,
+    )
+
+
+def plot_boxplot_capacities_per_sector(power_spores, heat_spores, region, year):
+    # FIXME: add grid and storage sectors
+    fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True)
+    sns.boxplot(ax=axs[0], data=power_spores.unstack("technology"), orient="h")
+    sns.boxplot(ax=axs[1], data=heat_spores.unstack("technology"), orient="h")
+    axs[0].set_title("Power sector")
+    axs[1].set_title("Heat sector")
+    axs[1].set_xlabel("Capacity [GW]")
+    fig.suptitle(
+        f"Distribution of SPORES capacities for the power and heat sector in {region} ({year})",
+        fontsize=14,
+    )
 
 
 if __name__ == "__main__":
@@ -523,9 +587,9 @@ if __name__ == "__main__":
         path_to_friendly_data="data/euro-spores-results-v2022-05-13", ax=ax
     )
 
-    # Plot normalised capacity distribution of power sector
+    # Plot normalised capacity distribution of power sector for 2030 and 2050
     fig, ax = plt.subplots()
-    plot_capacity_distribution_country(ax, power_capacity, country)
+    plot_capacity_distribution_2030_2050(ax, power_capacity, country)
 
     # Plot figure
     fig, ax = plt.subplots(figsize=(10, 5))

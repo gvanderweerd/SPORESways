@@ -1,5 +1,5 @@
 import numpy as np
-
+import pandas as pd
 
 # Technology sets
 PRIMARY_ENERGY_SOURCES = {
@@ -15,6 +15,19 @@ PRIMARY_ENERGY_SOURCES = {
     "natural_gas_supply": "Natural gas",
     "oil_supply": "Oil",
 }
+
+# FIXME: base these numbers on research
+ELECTRICITY_PRODUCERS_LIFE = {
+    "PV": 25,
+    "Offshore wind": 20,
+    "Onshore wind": 25,
+    "CCGT": 30,
+    "CHP": 30,
+    "Hydro": 30,
+    "Nuclear": 30,
+    "Bio to liquids": 30,
+}
+
 ELECTRICITY_PRODUCERS_SPORES = {
     "open_field_pv": "PV",
     "roof_mounted_pv": "PV",
@@ -27,7 +40,6 @@ ELECTRICITY_PRODUCERS_SPORES = {
     "hydro_reservoir": "Hydro",
     "hydro_run_of_river": "Hydro",
     "nuclear": "Nuclear",
-    "biofuel_to_liquids": "Bio to liquids",
 }
 ELECTRICITY_PRODUCERS_IRENASTAT = {
     "Solar photovoltaic": "PV",
@@ -198,3 +210,36 @@ REGION_MAPPING = {
     "SWE_4": "Sweden",
 }
 COUNTRIES = np.unique(list(REGION_MAPPING.values()))
+
+# Define x-axis for past-, projected-, and spores-capacity data
+years_2015_2021 = np.arange(2015, 2022)
+years_2021_2030 = np.arange(2021, 2031)
+years_2030_2050 = np.arange(2030, 2051)
+years_2021_2050 = np.arange(2021, 2051)
+
+# FIXME: move to processing functions.py
+calculate_growth_factor = lambda start_capacity, end_capacity, start_year, end_year: (
+    end_capacity / start_capacity
+) ** (1 / (end_year - start_year))
+
+
+"""Create a simulated series for power and heat capacities"""
+# # Create the first level of the multi-index
+# technology_p = ['PV', 'wind']
+# technology_h = ['HP', 'boiler']
+# # Create the first level of the multi-index
+# country_p = ["Spain"]
+# country_h = ["France", "Spain"]
+# # Create the second level of the multi-index
+# spore = list(range(6))
+# # Create the multi-index
+# index_p = pd.MultiIndex.from_product([country_p, technology_p, spore], names=['country', 'technology', 'spore'])
+# index_h = pd.MultiIndex.from_product([country_h, technology_h, spore], names=['country', 'technology', 'spore'])
+# # Create a random array of values between 0 and 1
+# values_p = range(12)
+# values_h = range(24)
+# # Create the Series with the multi-index and values
+# series_p = pd.Series(values_p, index=index_p)
+# series_h = pd.Series(values_h, index=index_h)
+# series = pd.concat([series_p, series_h]).groupby(level=series.index.names).first()
+# print(series)

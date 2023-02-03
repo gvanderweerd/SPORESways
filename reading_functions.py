@@ -12,7 +12,7 @@ from frictionless.package import Package
 from global_parameters import *
 from processing_functions import *
 
-INDEX_NAME_ORDER = ["year", "region", "technology", "carriers", "spore"]
+INDEX_NAME_ORDER = ["year", "region", "technology", "spore"]
 
 def read_spores_data(path_to_spores, slack="slack-10", file_names=None):
     """
@@ -49,6 +49,7 @@ def generate_sim_data(data_2050):
     """
 
     spores = [0, 21, 32, 77, 100, 206, 255, 263, 328, 345, 431]
+    spores = range(441)
     """
     Select 11 SPORES for simulated data
     0 - ?
@@ -149,7 +150,7 @@ def get_power_capacity(spores_data, save_to_csv=False):
     else:
         return power_capacity
 
-def get_heat_capacity(spores_data, save_to_csv):
+def get_heat_capacity(spores_data, save_to_csv=False):
     """
 
     :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
@@ -223,8 +224,8 @@ def get_storage_capacity(spores_data, save_to_csv=False):
             capacity_data.xs("twh", level="unit")
             .unstack("spore")
             .groupby(
-                [REGION_MAPPING, STORAGE_TECHNOLOGIES, "carriers"],
-                level=["region", "technology", "carriers"],
+                [REGION_MAPPING, STORAGE_TECHNOLOGIES],
+                level=["region", "technology"],
             )
             .sum()
             .stack("spore")
@@ -233,7 +234,7 @@ def get_storage_capacity(spores_data, save_to_csv=False):
         capacity_national = pd.concat({year: capacity_national}, names=["year"])
         # Calculate continental capacity
         capacity_eu = capacity_national.groupby(
-            ["year", "technology", "carriers", "spore"]
+            ["year", "technology", "spore"]
         ).sum()
 
         # Add "Europe" as an index with name "region" and reorder the index levels
@@ -273,7 +274,7 @@ def get_grid_capacity(spores_data, expansion_only=False, save_to_csv=False):
         capacity_data = spores_data.get(year).get(file_name)
         capacity = (
             capacity_data.unstack("spore")
-            .groupby(level=["importing_region", "exporting_region"])
+            .groupby(level=["importing_region", "exporting_region", "technology"])
             .sum()
             .stack("spore")
         )
@@ -281,7 +282,7 @@ def get_grid_capacity(spores_data, expansion_only=False, save_to_csv=False):
         capacity = pd.concat({year: capacity}, names=["year"])
 
         # Make sure the index names are in the correct order
-        index_names = ["importing_region", "exporting_region", "year", "spore"]
+        index_names = ["year", "importing_region", "exporting_region", "technology", "spore"]
         capacity = capacity.reorder_levels(index_names)
 
         grid_capacity = grid_capacity.append(capacity)
@@ -300,6 +301,7 @@ def get_power_capacity_irenastat(path, save_to_csv=False):
     #FIXME: make this function compatible with the .csv download (remove first rows and deal with column title difference)
     s = pd.read_csv(path, index_col=[0, 1, 2, 3], squeeze=True)
     s = s.rename({"United Kingdom of Great Britain and Northern Ireland": "United Kingdom", "Republic of North Macedonia": "North Macedonia"})
+    s = s.rename({"Country/area": "region", "Technology": "technology", "Year": "year"})
     s = s.replace("..", 0)
     s = s.astype(float)
 
@@ -339,12 +341,24 @@ if __name__ == "__main__":
     # Simulating a smaller dataset for 2030 and 2050
     data = generate_sim_data(data["2050"])
 
-    save = False
+    save = True
     power = get_power_capacity(spores_data=data, save_to_csv=save)
     heat = get_heat_capacity(spores_data=data, save_to_csv=save)
     storage = get_storage_capacity(spores_data=data, save_to_csv=save)
     grid = get_grid_capacity(spores_data=data, save_to_csv=save)
     grid_expansion = get_grid_capacity(spores_data=data, expansion_only=True, save_to_csv=save)
 
-    power_capacity = pd.read_csv("data/power_capacity.csv", index_col = ["year", "region", "technology", "spore"], squeeze=True)
-    power_capacity_2000_2021 = pd.read_csv("data/power_capacity_irenastat.csv", index_col = ["region", "technology", "year"], squeeze=True)
+    # # FIXME: this is an example of how to read in irenastat data. Move this to the function get_power_capacity_irenastat() when the lines below give the correct result
+    # s = pd.read_csv(paths.get("irenastat_2000_2021"), index_col=["Country/area", "Technology", "Grid connection", "Year"], squeeze=True)
+    # s = s.rename({"United Kingdom of Great Britain and Northern Ireland": "United Kingdom", "Republic of North Macedonia": "North Macedonia"})
+    # s = s.replace("..", 0)
+    # print(s)
+    # s = s.replace("Installed electricity capacity by country/area (MW)", np.nan)
+    # s = s.astype(float)
+    # power_capacity = s.groupby(
+    #     ["Country/area", ELECTRICITY_PRODUCERS_IRENASTAT, "Year"],
+    #     level=["Country/area", "Technology", "Year"]
+    # ).sum()
+    # print(power_capacity)
+    # power_capacity = power_capacity.rename({"Country/area": "region", "Technology": "technology", "Year": "year"})
+    # print(power_capacity)
