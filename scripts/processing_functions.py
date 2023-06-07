@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+from scipy.optimize import curve_fit
 
 # Import other scripts in this repository
 from main import *
@@ -18,6 +20,26 @@ calculate_exponential_growth = lambda start_capacity, growth_factor, years: [
     start_capacity * growth_factor ** (year - years[0]) for year in years
 ]
 
+def s_curve(x, K, x0, L):
+    return L / (1 + np.exp(-K * (x - x0)))
+
+def capacity_growth_s_curve(capacity_2000_2021, capacity_2050):
+    # x = [2020, 2021, 2050]
+    x = list(np.arange(2000, 2022))
+    x.append(2050)
+    print(x)
+    y = list(capacity_2000_2021.array)
+    y.append(capacity_2050)
+    print(y)
+
+    popt, pcov = curve_fit(s_curve, x, y)
+    K, x0, L = popt
+    print(K, x0, L)
+
+    years_2000_2050 = np.arange(2000, 2051)
+    y = s_curve(x=years_2000_2050, K=K, x0=x0, L=L)
+
+    return y
 
 def get_storage_capacity_year(
     spores_data, year, technologies, carrier=None, spores=None, normalise=False
@@ -536,7 +558,7 @@ def find_highest_similarity_clusters(data):
         agg_clustering = AgglomerativeClustering(n_clusters=n_clusters)
         cluster_labels = agg_clustering.fit_predict(df_normalised)
         score = silhouette_score(df_normalised, cluster_labels)
-        print(f"For {n_clusters}, the silhouette score = {score}")
+        # print(f"For {n_clusters}, the silhouette score = {score}")
         if score > best_score:
             best_score = score
             best_n_clusters = n_clusters

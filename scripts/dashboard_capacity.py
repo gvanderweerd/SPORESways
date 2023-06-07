@@ -185,28 +185,66 @@ app.layout = html.Div(
         dcc.Dropdown(
             id="region-dropdown",
             options=[{"label": region, "value": region} for region in COUNTRIES],
-            value=COUNTRIES[0],
+            value=None
         ),
         # Add a dropdown component for selecting the sector
         dcc.Dropdown(
             id="sector-dropdown",
             options=[{"label": sector, "value": sector} for sector in SECTORS],
-            value=SECTORS[0],
+            value=None
         ),
         # Add a dropdown component for selecting the year
         dcc.Dropdown(
             id="year-dropdown",
             options=[{"label": year, "value": year} for year in YEARS],
-            value=YEARS[1],
+            value=None
         ),
         # Add a Graph component for displaying the stripplot
         dcc.Graph(id="stripplot"),
         # Add a container for the sliders
-        html.Div(id="sliders"),
+        html.Div(id="sliders")
     ],
     style={"width": "50%", "margin": "0 auto"},
 )
 
+
+@app.callback(
+    dash.dependencies.Output("sliders", "children"),
+    [dash.dependencies.Input("sector-dropdown", "value")]
+)
+def update_sliders(sector):
+    if sector is None:
+        return []
+    elif sector == "Power":
+        return html.Div(
+            style={"display": "flex", "flex-direction": "row"},
+            children=[
+                dcc.RangeSlider(
+                    id=f"slider-{technology}",
+                    min=0,
+                    max=1,
+                    step=0.01,
+                    value=[0, 1],
+                    vertical=True
+                )
+                for technology in range(7)
+            ]
+        )
+    elif sector == "Heat":
+        return html.Div(
+            style={"display": "flex", "flex-direction": "row"},
+            children=[
+                dcc.RangeSlider(
+                    id=f"slider-{technology}",
+                    min=0,
+                    max=1,
+                    step=0.01,
+                    value=[0, 1],
+                    vertical=True
+                )
+                for technology in range(4)
+            ]
+        )
 
 # Define the callback function for updating the stripplot
 @app.callback(
@@ -228,25 +266,6 @@ def update_stripplot(region, sector, year):
     # Create the stripplot
     fig = px.strip(df_filtered, x="technology", y="capacity")
     fig.update_layout(yaxis_title="Capacity [GW]")
-
-    # Add a slider for each technology
-    # FIXME: everytime the app is reloaded, 7 new sliders are added to the page. Define a function that makes the sliders once
-    for technology in df_filtered["technology"].unique():
-        print(technology)
-        app.layout.children.append(
-            html.Div(
-                [
-                    dcc.RangeSlider(
-                        id=f"slider-{technology}",
-                        min=0,
-                        max=1,
-                        step=0.01,
-                        value=[0, 1],
-                        vertical=False,
-                    )
-                ]
-            )
-        )
 
     return fig
 

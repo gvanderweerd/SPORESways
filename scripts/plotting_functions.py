@@ -118,29 +118,81 @@ def plot_el_production_hubs(
             pad_inches=0,
         )
 
+# def plot_capacity_distribution_2030_ontrack():
 
-def plot_capacity_distribution(ax, data, year, country):
-    capacity = data.loc[year, country, :, :]
-    capacity_normalised = capacity.div(capacity.groupby("technology").max())
+def plot_capacity_distribution_clusters_2050(ax, capacity, cluster_in_color=None):
+    palette = {0:"grey", 1:"grey", 2:"grey", 3:"grey", 4:"grey", 5:"grey", 6:"grey", 7:"grey"}
+    if cluster_in_color is not None:
+        palette[cluster_in_color] = "blue"
+
+    scaler = MinMaxScaler()
+    all_techs = capacity.index.get_level_values("technology").unique()
+    capacity_normalised = pd.DataFrame(
+        scaler.fit_transform(capacity.unstack("technology")), columns=all_techs
+    )
     capacity_ranges = capacity.groupby("technology").agg(["min", "max"])
+    index = capacity.unstack("technology").index
+    capacity_normalised.index = index
+    capacity_normalised = capacity_normalised.stack("technology")
 
     sns.stripplot(
         ax=ax,
         data=capacity_normalised,
-        x="technology",
         y=capacity_normalised.array,
-        order=POWER_TECH_ORDER,
+        x="technology",
+        hue="spore_cluster",
         marker=open_circle,
-        color="grey",
+        palette=palette
     )
-
     ax.set_title(
-        f"Capacity distribution of {year} SPORES results for the power sector in {country}"
+        f"Capacity distribution of 2050 SPORES for the power sector in Europe"
     )
     ax.set_xlabel("")
     ax.set_ylabel("Normalised capacity")
-    ax.set_xticks(range(len(POWER_TECH_ORDER)))
-    ax.set_xticklabels(POWER_TECH_ORDER, fontsize=10)
+    ax.set_xticks(range(len(all_techs)))
+    ax.set_xticklabels(all_techs, fontsize=10)
+    xticklabels = []
+    for ticklabel in ax.get_xticklabels():
+        technology = ticklabel.get_text()
+
+        if technology in capacity.index.get_level_values("technology").unique():
+            xticklabels.append(
+                f"{technology}\n{capacity_ranges.loc[technology, 'min'].round(2)} - {capacity_ranges.loc[technology, 'max'].round(2)} [GW]"
+            )
+        else:
+            xticklabels.append(f"{technology}\n0.0 - 0.0 [GW]")
+    ax.set_xticklabels(xticklabels, fontsize=10)
+
+def plot_capacity_distribution(ax, data, year, country, spores_cluster, spores_rest):
+    capacity = data
+    scaler = MinMaxScaler()
+    all_techs = capacity.index.get_level_values("technology").unique()
+    capacity_normalised = pd.DataFrame(
+        scaler.fit_transform(capacity.unstack("technology")), columns=all_techs
+    )
+    capacity_ranges = capacity.groupby("technology").agg(["min", "max"])
+
+    sns.stripplot(
+        ax=ax,
+        data=capacity_normalised.loc[spores_rest],
+        marker=open_circle,
+        palette={"PV": "grey", "Onshore wind": "grey", "Offshore wind": "grey", "Hydro": "grey", "CCGT": "grey", "Nuclear": "grey", "CHP": "grey"},
+    )
+    sns.stripplot(
+        ax=ax,
+        data=capacity_normalised.loc[spores_cluster],
+        marker="o",
+        palette={"PV": "blue", "Onshore wind": "blue", "Offshore wind": "blue", "Hydro": "blue", "CCGT": "blue", "Nuclear": "blue", "CHP": "blue"},
+        color="blue"
+    )
+
+    ax.set_title(
+        f"Capacity distribution of {year} SPORES for the power sector in {country}"
+    )
+    ax.set_xlabel("")
+    ax.set_ylabel("Normalised capacity")
+    ax.set_xticks(range(len(all_techs)))
+    ax.set_xticklabels(all_techs, fontsize=10)
     xticklabels = []
     for ticklabel in ax.get_xticklabels():
         technology = ticklabel.get_text()
@@ -166,26 +218,24 @@ def plot_capacity_distribution(ax, data, year, country):
 
 
 def plot_capacity_distribution_2030_2050(ax, data, country):
-    capacity = data.loc[:, country, :, :]
-    capacity_normalised = capacity.div(capacity.groupby("technology").max())
+    capacity = data
     capacity_ranges = capacity.groupby("technology").agg(["min", "max"])
+    capacity_normalised = capacity.div(capacity.groupby("technology").max())
 
     sns.stripplot(
         ax=ax,
         data=capacity_normalised,
         x="technology",
         y=capacity_normalised.array,
-        order=POWER_TECH_ORDER,
         hue="year",
         hue_order=[2030, 2050],
         jitter=True,
         dodge=True,
-        color="grey",
-        # palette=["orange", "green"],
+        palette=["grey", "grey"],
         marker=open_circle,
     )
     ax.set_title(
-        f"Capacity distribution of SPORES results for the power sector in {country}"
+        "Capacity distribution of SPORES results for the power sector in Europe"
     )
     ax.set_xlabel("")
     ax.set_ylabel("Normalised capacity")
@@ -423,7 +473,7 @@ def plot_capacity_pathway(
     axs[1].set_xticklabels(xticklabels, fontsize=10)
 
 
-def _add_historic_capacity_to_pathway(ax, capacity_historic):
+def add_historic_capacity_to_pathway(ax, capacity_historic):
     # Define the years for which to plot the historic capacity
     years_historic = list(capacity_historic.index.get_level_values("year").unique())
     # Plot historic capacity (2015-2021)
@@ -436,7 +486,7 @@ def _add_historic_capacity_to_pathway(ax, capacity_historic):
     )
 
 
-def _add_spores_capacity_to_pathway(ax, capacity_spores, year):
+def add_spores_capacity_to_pathway(ax, capacity_spores, year, label, color="grey", marker=open_circle):
     # Count number of SPORES in capacity spores data
     n_spores = len(capacity_spores.index.get_level_values("spore").unique())
     # Define x for capacity SPORES
@@ -446,15 +496,15 @@ def _add_spores_capacity_to_pathway(ax, capacity_spores, year):
         ax=ax,
         x=x_spores,
         y=capacity_spores.array,
-        marker=open_circle,
-        color="grey",
-        label=f"SPORES {year}",
+        marker=marker,
+        color=color,
+        label=label,
     )
 
 
-def _add_capacity_value_to_pathway(ax, year, value):
+def add_capacity_value_to_pathway(ax, year, value):
     # Plot black dot on the map of the value that is plotted
-    ax.scatter(x=year, y=value, marker="o", color="black")
+    ax.scatter(x=year, y=value, marker=open_circle, color="grey")
     # Plot capacity value text at x=year, y=value+10
     ax.annotate(
         xy=(year, value),
@@ -464,7 +514,7 @@ def _add_capacity_value_to_pathway(ax, year, value):
     )
 
 
-def _add_exponential_growth_to_pathway(ax, projections, projection_years):
+def add_exponential_growth_to_pathway(ax, projections, projection_years):
     for projection in projections:
         ax.fill_between(
             x=projection_years,
@@ -474,55 +524,82 @@ def _add_exponential_growth_to_pathway(ax, projections, projection_years):
             label=projection["label"],
             alpha=0.25,
         )
+def add_band_to_pathway(ax, x, y_upper, y_lower):
+    ax.fill_between(x=x, y1=y_upper, y2=y_lower, color="grey", alpha=0.25)
 
 
-def _add_decline_to_lockin_capacity_2050(ax, projections):
+def add_decline_to_lockin_capacity_2050(ax, projections):
     for projection in projections:
         sns.lineplot(x=years_2030_2050, y=projection, color="grey", linestyle="--")
 
 
 def plot_technology_pathway(
-    ax, capacity_2000_2021, capacity_2030, capacity_2050, country, technology
+    ax, technology, capacity_2000_2021, capacity_2030, capacity_2050, s_curve_params, capacity_2050_in_cluster=None
 ):
-    # Prepare data for capacity pathway plot
-    capacity_2000_2021 = capacity_2000_2021.loc[country, technology, 2000:]
-    capacity_2030 = capacity_2030.loc[2030, country, technology, :]
-    capacity_2050 = capacity_2050.loc[2050, country, technology, :]
-    print("pathway test")
-    print(capacity_2050)
+    L_max = capacity_2050_in_cluster.max()
+    L_min = capacity_2050_in_cluster.min()
+    y_min = s_curve(x=years_2000_2050, x0=s_curve_params.get("x0"), L=L_min, K=s_curve_params.get("K_min"))
+    y_max = s_curve(x=years_2000_2050, x0=s_curve_params.get("x0"), L=L_max, K=s_curve_params.get("K_max"))
+
+    # Split 2030 SPORES capacity series into 3 series; (1) a series with SPORES that are 'on track', (2) a series with SPORES that are 'over-invested', and (3) a series with SPORES that are 'uncer-invested' for the cluster of SPORES in 2050
+    capacity_2030_on_track = capacity_2030.loc[(capacity_2030 > y_min[30]) & (capacity_2030 < y_max[30])].dropna()
+    capacity_2030_overinvested = capacity_2030.loc[capacity_2030 >= y_max[30]].dropna()
+    capacity_2030_underinvested = capacity_2030.loc[capacity_2030 <= y_min[30]].dropna()
+    spores_2030_on_track = capacity_2030_on_track.index.get_level_values("spore").unique()
+    spores_2030_overinvested = capacity_2030_overinvested.index.get_level_values("spore").unique()
+    spores_2030_underinvested = capacity_2030_underinvested.index.get_level_values("spore").unique()
 
     # Add historic capacity
-    _add_historic_capacity_to_pathway(ax=ax, capacity_historic=capacity_2000_2021)
-    # Add 2030 and 2050 SPORES
-    _add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2030, year=2030)
-    _add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2050, year=2050)
+    add_historic_capacity_to_pathway(ax=ax, capacity_historic=capacity_2000_2021)
+
+    # Add 2030 SPORES
+    # _add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2030, year=2030)
+    add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2030_overinvested, year=2030, label="SPORES that are over-invested for cluster 4 in 2050", color="green", marker="o")
+    add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2030_on_track, year=2030, label="2030 SPORES that are on track for cluster 4 in 2050", color="orange", marker="o")
+    add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2030_underinvested, year=2030, label="2030 SPORES that are under-invested for cluster 4 in 2050" ,color="red", marker="o")
+    # Add 2050 SPORES
+    add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2050, year=2050, label="2050 SPORES")
+    if capacity_2050_in_cluster is not None:
+        add_spores_capacity_to_pathway(ax=ax, capacity_spores=capacity_2050_in_cluster, year=2050, label="2050 SPORES in cluster 4", color="blue", marker="o")
+
+    # Add s-curve projection to cluster in 2050
+    add_band_to_pathway(ax=ax, x=years_2000_2050, y_upper=y_max, y_lower=y_min)
+
 
     # Add capacity value at x=2021
-    _add_capacity_value_to_pathway(ax=ax, year=2021, value=capacity_2000_2021[-1])
+    add_capacity_value_to_pathway(ax=ax, year=2021, value=capacity_2000_2021.iloc[-1])
     # Add min and max capacity values at x=2030
-    _add_capacity_value_to_pathway(ax=ax, year=2030, value=capacity_2030.max())
-    _add_capacity_value_to_pathway(ax=ax, year=2030, value=capacity_2030.min())
+    add_capacity_value_to_pathway(ax=ax, year=2030, value=capacity_2030.max())
+    add_capacity_value_to_pathway(ax=ax, year=2030, value=capacity_2030.min())
     # Add min and max capacity values at x=2050
-    _add_capacity_value_to_pathway(ax=ax, year=2050, value=capacity_2050.max())
-    _add_capacity_value_to_pathway(ax=ax, year=2050, value=capacity_2050.min())
+    #FIXME: figure out what values to plot? Min/Max of cluster, or total dataset?
+    add_capacity_value_to_pathway(ax=ax, year=2050, value=capacity_2050_in_cluster.max())
+    add_capacity_value_to_pathway(ax=ax, year=2050, value=capacity_2050_in_cluster.min())
 
     """
     These lines plot 
     
     # Calculate projection to 2030
-    projections_2021_2030, info_2030 = projection_to_spores_exponential(start_capacity=capacity_2000_2021[-1], spores_capacity=capacity_2030, years=years_2021_2030)
-    projections_2021_2050, info_2050 = projection_to_spores_exponential(start_capacity=capacity_2000_2021[-1], spores_capacity=capacity_2050, years=years_2021_2050)
+    projections_2021_2030, info_2030 = projection_to_spores_exponential(start_capacity=capacity_2000_2021.iloc[-1], spores_capacity=capacity_2030, years=years_2021_2030)
+    projections_2021_2050, info_2050 = projection_to_spores_exponential(start_capacity=capacity_2000_2021.iloc[-1], spores_capacity=capacity_2050, years=years_2021_2050)
     # Calculate 'lock-in' projetion from 2030 to 2050
     projections_2030_2050 = projection_lock_in_2030_2050(capacity_2000_2021=capacity_2000_2021, capacity_2021_2030=projections_2021_2030, capacity_2030=capacity_2030, years=years_2030_2050, life_time=ELECTRICITY_PRODUCERS_LIFE.get("PV"))
     # Add exponential projection from 2021 until 2030
-    _add_exponential_growth_to_pathway(ax=ax, projections=projections_2021_2030, projection_years=years_2021_2030)
-    # # _add_exponential_growth_to_pathway(ax=ax, projections=projections_2021_2050, projection_years=years_2021_2050)
+    add_exponential_growth_to_pathway(ax=ax, projections=projections_2021_2030, projection_years=years_2021_2030)
+    # # add_exponential_growth_to_pathway(ax=ax, projections=projections_2021_2050, projection_years=years_2021_2050)
     # Add lock-in effect from 2030 spores on 2050
-    _add_decline_to_lockin_capacity_2050(ax=ax, projections=projections_2030_2050)
+    add_decline_to_lockin_capacity_2050(ax=ax, projections=projections_2030_2050)
     """
 
     # Set figure legend
     ax.legend(bbox_to_anchor=(0, 1), loc="upper left")
+    # Set figure title
+    ax.set_title(f"{technology}")
+    # Set axis labels
+    ax.set_xlabel("Time [years]")
+    ax.set_ylabel("Capacity [GW]")
+
+    return spores_2030_underinvested, spores_2030_on_track, spores_2030_overinvested
 
 
 def plot_boxplot_capacities_2030_2050(spores_2030, spores_2050, region, sector):

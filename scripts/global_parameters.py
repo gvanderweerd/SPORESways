@@ -28,6 +28,11 @@ ELECTRICITY_PRODUCERS_LIFE = {
     "Bio to liquids": 30,
 }
 
+GRID_TECHS_SPORES = {
+    "ac_transmission": "Power grid",
+    "dc_transmission": "Power grid"
+}
+
 ELECTRICITY_PRODUCERS_SPORES = {
     "open_field_pv": "PV",
     "roof_mounted_pv": "PV",
@@ -61,9 +66,6 @@ vRES_PRODUCERS = {
 }
 HEAT_PRODUCERS = {
     "biofuel_boiler": "Boiler",
-    "chp_biofuel_extraction": "CHP",
-    "chp_methane_extraction": "CHP",
-    "chp_wte_back_pressure": "CHP",
     "electric_heater": "Electric heater",
     "hp": "Heat pump",
     "methane_boiler": "Boiler",
@@ -77,6 +79,11 @@ EL_HEAT_PRODUCERS = {
     "hp": "Electric",
     # "methane_boiler": "Fuel",
 }
+FUEL_PRODUCERS = {
+    "electrolysis": "Hydrogen",
+    #FIXME: find the other fuel producers and summarise them as "Conventional fuels" (think, diesel, methane, etc.)
+}
+
 HYDROGEN_PRODUCERS = {
     "electrolysis": "Electrolysis",
 }
@@ -88,6 +95,11 @@ STORAGE_TECHNOLOGIES = {
     "pumped_hydro": "Hydro storage",
     "hydrogen_storage": "Hydrogen storage",
     "methane_storage": "Methane storage",
+}
+
+TECH_UNITS = {
+    "Electric heating": "GW",
+    "Boiler": "GW",
 }
 
 # GAGR estimated by EU Market Outlook for Solar Power (2022-2026) converted to growth factor
@@ -212,10 +224,21 @@ REGION_MAPPING = {
 COUNTRIES = np.unique(list(REGION_MAPPING.values()))
 
 # Define x-axis for past-, projected-, and spores-capacity data
+years_2000_2050 = np.arange(2000, 2051)
 years_2015_2021 = np.arange(2015, 2022)
 years_2021_2030 = np.arange(2021, 2031)
 years_2030_2050 = np.arange(2030, 2051)
 years_2021_2050 = np.arange(2021, 2051)
+
+s_curve_params_power_sector = {
+    "PV": {"x0": 2035, "K_min": 0.2, "K_max": 0.3},
+    "Onshore wind": {"x0": 2035, "K_min": 0.2, "K_max": 0.3},
+    "Offshore wind": {"x0": 2035, "K_min": 0.2, "K_max": 0.3},
+    "Hydro": {"x0": 2035, "K_min": 0.2, "K_max": 0.3},
+    "Nuclear": {"x0": 2035, "K_min": 0.2, "K_max": 0.3},
+    "CHP": {"x0": 2035, "K_min": 0.2, "K_max": 0.3},
+    "CCGT": {"x0": 2035, "K_min": 0.2, "K_max": 0.3},
+}
 
 # FIXME: move to processing functions.py
 calculate_growth_factor = lambda start_capacity, end_capacity, start_year, end_year: (
@@ -223,10 +246,11 @@ calculate_growth_factor = lambda start_capacity, end_capacity, start_year, end_y
 ) ** (1 / (end_year - start_year))
 
 
+
 """Create a simulated series for power and heat capacities"""
 # # Create the first level of the multi-index
 # technology_p = ['PV', 'wind']
-# technology_h = ['HP', 'boiler']
+# technology_h = ['Heat pump', 'boiler']
 # # Create the first level of the multi-index
 # country_p = ["Spain"]
 # country_h = ["France", "Spain"]
@@ -243,3 +267,48 @@ calculate_growth_factor = lambda start_capacity, end_capacity, start_year, end_y
 # series_h = pd.Series(values_h, index=index_h)
 # series = pd.concat([series_p, series_h]).groupby(level=series.index.names).first()
 # print(series)
+
+# """
+# Define historical data
+# """
+# # Power sector
+# power_technologies = ["PV", "Onshore wind", "Offshore wind", "Hydro", "Nuclear", "CCGT", "CHP"]
+# years = ["2020", "2021"]
+# power_present_gw = [
+#     # FIXME: make real estimate of PV capacity 2020-2021:
+#     100,
+#     110,
+#     # FIXME: make real estimate of PV capacity 2020-2021:
+#     100,
+#     110,
+#     # FIXME: make real estimate of PV capacity 2020-2021:
+#     100,
+#     110,
+#     # FIXME: make real estimate of PV capacity 2020-2021:
+#     100,
+#     110,
+#     # FIXME: make real estimate of PV capacity 2020-2021:
+#     100,
+#     110,
+#     # FIXME: make real estimate of PV capacity 2020-2021:
+#     100,
+#     110,
+#     # FIXME: make real estimate of PV capacity 2020-2021:
+#     100,
+#     110,
+# ]
+# index = pd.MultiIndex.from_product([power_technologies, years], names=["technology", "year"])
+# power_present_gw = pd.Series(power_present_gw, index=index)
+# # Heat sector
+# heat_technologies = ["Boiler", "Electrical heating"]
+# years = ["2020", "2021"]
+# heat_present_gw = [
+#     # FIXME: make real estimate of boiler capacity 2020:
+#     100,
+#     105,
+#     # Electrical heating capacity 2020: estimated as heat pump capacity obtained from eurostat database: https://ec.europa.eu/eurostat/databrowser/view/NRG_INF_HPTC__custom_4864488/default/table?lang=en
+#     253.191469,
+#     271.288156
+# ]
+# index = pd.MultiIndex.from_product([heat_technologies, years], names=["technology", "year"])
+# heat_present_gw = pd.Series(heat_present_gw, index=index)

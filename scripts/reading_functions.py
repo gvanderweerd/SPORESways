@@ -274,7 +274,7 @@ def get_grid_capacity(spores_data, expansion_only=False, save_to_csv=False):
         capacity_data = spores_data.get(year).get(file_name)
         capacity = (
             capacity_data.unstack("spore")
-            .groupby(level=["importing_region", "exporting_region", "technology"])
+            .groupby(["importing_region", "exporting_region", GRID_TECHS_SPORES], level=["importing_region", "exporting_region", "technology"])
             .sum()
             .stack("spore")
         )
@@ -347,6 +347,7 @@ if __name__ == "__main__":
     storage = get_storage_capacity(spores_data=data, save_to_csv=save)
     grid = get_grid_capacity(spores_data=data, save_to_csv=save)
     grid_expansion = get_grid_capacity(spores_data=data, expansion_only=True, save_to_csv=save)
+
 
     # # FIXME: this is an example of how to read in irenastat data. Move this to the function get_power_capacity_irenastat() when the lines below give the correct result
     # s = pd.read_csv(paths.get("irenastat_2000_2021"), index_col=["Country/area", "Technology", "Grid connection", "Year"], squeeze=True)
