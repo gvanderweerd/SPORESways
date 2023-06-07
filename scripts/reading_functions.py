@@ -1,6 +1,7 @@
 import string
 import yaml
 import os
+import shutil
 import numpy as np
 import pandas as pd
 import csv
@@ -13,6 +14,48 @@ from global_parameters import *
 from processing_functions import *
 
 INDEX_NAME_ORDER = ["year", "region", "technology", "spore"]
+
+
+def aggregate_categorised_spores(path_to_spores, path_to_result):
+    """
+    This function aggregates a categorised set of SPORES that has .csv files in multiple folders for each subset of SPORES into a set of SPORES that contains files with all SPORES that exist within the directory.
+    :param path_to_spores: path to the directory where the categorised SPORES are placed
+    :param path_to_result: path to the directory where the aggregated SPORES should be saved
+    :return:
+    """
+    # Make new folder for aggregated spores if it does not exist yet
+    if not os.path.exists(path_to_result):
+        os.makedirs(path_to_result)
+    # Get all unique filenames in the directory
+    file_names = set()
+    for root, dirs, files in os.walk(path_to_spores):
+        for file in files:
+            file_names.add(file)
+    # Process each filename
+    for file_name in files:
+        # Create a new filename in the result directory
+        result_file_path = os.path.join(path_to_result, file_name)
+        result_file = open(result_file_path, "w")
+        # Flag to indicate if top row with column names has been written
+        top_row_written = False
+
+        # Iterate of each subdirectory
+        for root, dirs, files in os.walk(path_to_spores):
+            # Check if the file exists
+            if file_name in files:
+                # Read the content of the file and write it to the result file
+                file_path = os.path.join(root, file_name)
+                with open(file_path, "r") as file:
+                    # Skip first row if with column names if it has been written
+                    if top_row_written:
+                        next(file)
+                    else:
+                        top_row_written = True
+                    # Write remaining rows to the resultfile
+                    shutil.copyfileobj(file, result_file)
+        # Close the result file
+        result_file.close()
+
 
 def read_spores_data(path_to_spores, slack="slack-10", file_names=None):
     """
@@ -39,6 +82,7 @@ def read_spores_data(path_to_spores, slack="slack-10", file_names=None):
 
     data = {resource["name"]: to_df(resource).squeeze() for resource in resources}
     return data
+
 
 def generate_sim_data(data_2050):
     """
@@ -94,7 +138,8 @@ def generate_sim_data(data_2050):
             # )
     return sim_data
 
-def get_power_capacity(spores_data, save_to_csv=False):
+
+def get_power_capacity(spores_data, result_path, save_to_csv=False):
     """
 
     :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
@@ -125,9 +170,7 @@ def get_power_capacity(spores_data, save_to_csv=False):
         capacity_national = pd.concat({year: capacity_national}, names=["year"])
 
         # Calculate continental capacity
-        capacity_eu = capacity_national.groupby(
-            ["year", "technology", "spore"]
-        ).sum()
+        capacity_eu = capacity_national.groupby(["year", "technology", "spore"]).sum()
 
         # Add "Europe" as an index with name "region" and reorder the index levels
         index_names = ["year", "region", "technology", "spore"]
@@ -146,11 +189,12 @@ def get_power_capacity(spores_data, save_to_csv=False):
     power_capacity.name = "capacity_gw"
 
     if save_to_csv:
-        power_capacity.to_csv(f"data/power_capacity.csv")
+        power_capacity.to_csv(os.path.join(result_path, "power_capacity.csv"))
     else:
         return power_capacity
 
-def get_heat_capacity(spores_data, save_to_csv=False):
+
+def get_heat_capacity(spores_data, result_path, save_to_csv=False):
     """
 
     :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
@@ -182,9 +226,7 @@ def get_heat_capacity(spores_data, save_to_csv=False):
         capacity_national = pd.concat({year: capacity_national}, names=["year"])
 
         # Calculate continental capacity
-        capacity_eu = capacity_national.groupby(
-            ["year", "technology", "spore"]
-        ).sum()
+        capacity_eu = capacity_national.groupby(["year", "technology", "spore"]).sum()
 
         # Add "Europe" as an index with name "region" and reorder the index levels
         index_names = ["year", "region", "technology", "spore"]
@@ -203,11 +245,12 @@ def get_heat_capacity(spores_data, save_to_csv=False):
     heat_capacity.name = "capacity_gw"
 
     if save_to_csv:
-        heat_capacity.to_csv(f"data/heat_capacity.csv")
+        heat_capacity.to_csv(os.path.join(result_path, "heat_capacity.csv"))
     else:
         return heat_capacity
 
-def get_storage_capacity(spores_data, save_to_csv=False):
+
+def get_storage_capacity(spores_data, result_path, save_to_csv=False):
     """
 
     :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
@@ -233,9 +276,7 @@ def get_storage_capacity(spores_data, save_to_csv=False):
         # Add the year as an index
         capacity_national = pd.concat({year: capacity_national}, names=["year"])
         # Calculate continental capacity
-        capacity_eu = capacity_national.groupby(
-            ["year", "technology", "spore"]
-        ).sum()
+        capacity_eu = capacity_national.groupby(["year", "technology", "spore"]).sum()
 
         # Add "Europe" as an index with name "region" and reorder the index levels
         index_names = INDEX_NAME_ORDER
@@ -252,11 +293,14 @@ def get_storage_capacity(spores_data, save_to_csv=False):
     storage_capacity.name = "capacity_twh"
 
     if save_to_csv:
-        storage_capacity.to_csv(f"data/{file_name}.csv")
+        storage_capacity.to_csv(os.path.join(result_path, f"{file_name}.csv"))
     else:
         return storage_capacity
 
-def get_grid_capacity(spores_data, expansion_only=False, save_to_csv=False):
+
+def get_grid_capacity(
+    spores_data, result_path, expansion_only=False, save_to_csv=False
+):
     """
 
     :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
@@ -274,7 +318,10 @@ def get_grid_capacity(spores_data, expansion_only=False, save_to_csv=False):
         capacity_data = spores_data.get(year).get(file_name)
         capacity = (
             capacity_data.unstack("spore")
-            .groupby(["importing_region", "exporting_region", GRID_TECHS_SPORES], level=["importing_region", "exporting_region", "technology"])
+            .groupby(
+                ["importing_region", "exporting_region", GRID_TECHS_SPORES],
+                level=["importing_region", "exporting_region", "technology"],
+            )
             .sum()
             .stack("spore")
         )
@@ -282,7 +329,13 @@ def get_grid_capacity(spores_data, expansion_only=False, save_to_csv=False):
         capacity = pd.concat({year: capacity}, names=["year"])
 
         # Make sure the index names are in the correct order
-        index_names = ["year", "importing_region", "exporting_region", "technology", "spore"]
+        index_names = [
+            "year",
+            "importing_region",
+            "exporting_region",
+            "technology",
+            "spore",
+        ]
         capacity = capacity.reorder_levels(index_names)
 
         grid_capacity = grid_capacity.append(capacity)
@@ -293,14 +346,20 @@ def get_grid_capacity(spores_data, expansion_only=False, save_to_csv=False):
     grid_capacity.name = "capacity_gw"
 
     if save_to_csv:
-        grid_capacity.to_csv(f"data/{file_name}.csv")
+        grid_capacity.to_csv(os.path.join(result_path, f"{file_name}.csv"))
     else:
         return grid_capacity
 
+
 def get_power_capacity_irenastat(path, save_to_csv=False):
-    #FIXME: make this function compatible with the .csv download (remove first rows and deal with column title difference)
+    # FIXME: make this function compatible with the .csv download (remove first rows and deal with column title difference)
     s = pd.read_csv(path, index_col=[0, 1, 2, 3], squeeze=True)
-    s = s.rename({"United Kingdom of Great Britain and Northern Ireland": "United Kingdom", "Republic of North Macedonia": "North Macedonia"})
+    s = s.rename(
+        {
+            "United Kingdom of Great Britain and Northern Ireland": "United Kingdom",
+            "Republic of North Macedonia": "North Macedonia",
+        }
+    )
     s = s.rename({"Country/area": "region", "Technology": "technology", "Year": "year"})
     s = s.replace("..", 0)
     s = s.astype(float)
@@ -318,14 +377,17 @@ def get_power_capacity_irenastat(path, save_to_csv=False):
     else:
         return power_capacity
 
+
 if __name__ == "__main__":
 
     # Define paths to data
     paths = {
-        "2050": os.path.join(os.getcwd(), "data", "euro-spores-results-v2022-05-13"),
+        "2030": os.path.join(os.getcwd(), "../data", "euro-spores-results-2030"),
+        "2050": os.path.join(os.getcwd(), "../data", "euro-spores-results-v2022-05-13"),
         "ember_electricity_data": "data/ember_data/ember_electricitydata_yearly_full_release_long_format-1.csv",
-        "irenastat_2000_2021": "data/historic_power_capacity_mw_irenastat.csv"
+        "irenastat_2000_2021": "data/historic_power_capacity_mw_irenastat.csv",
     }
+    result_path = os.path.join(os.getcwd(), "../data", "continental_aggregated_spores")
     # Define for which cost relaxation we want to read the data
     slack = "slack-10"
     # Define which files we want to read
@@ -338,16 +400,27 @@ if __name__ == "__main__":
     ]
 
     data = {"2050": read_spores_data(paths["2050"], slack, files)}
+
+    # FIXME replace by reading real spores
     # Simulating a smaller dataset for 2030 and 2050
     data = generate_sim_data(data["2050"])
 
     save = True
-    power = get_power_capacity(spores_data=data, save_to_csv=save)
-    heat = get_heat_capacity(spores_data=data, save_to_csv=save)
-    storage = get_storage_capacity(spores_data=data, save_to_csv=save)
-    grid = get_grid_capacity(spores_data=data, save_to_csv=save)
-    grid_expansion = get_grid_capacity(spores_data=data, expansion_only=True, save_to_csv=save)
-
+    power = get_power_capacity(
+        spores_data=data, result_path=result_path, save_to_csv=save
+    )
+    heat = get_heat_capacity(
+        spores_data=data, result_path=result_path, save_to_csv=save
+    )
+    storage = get_storage_capacity(
+        spores_data=data, result_path=result_path, save_to_csv=save
+    )
+    grid = get_grid_capacity(
+        spores_data=data, result_path=result_path, save_to_csv=save
+    )
+    grid_expansion = get_grid_capacity(
+        spores_data=data, result_path=result_path, expansion_only=True, save_to_csv=save
+    )
 
     # # FIXME: this is an example of how to read in irenastat data. Move this to the function get_power_capacity_irenastat() when the lines below give the correct result
     # s = pd.read_csv(paths.get("irenastat_2000_2021"), index_col=["Country/area", "Technology", "Grid connection", "Year"], squeeze=True)
