@@ -16,6 +16,41 @@ from src.utils.parameters import *
 INDEX_NAME_ORDER = ["year", "region", "technology", "spore"]
 
 
+def compare_technologies_2030_vs_2050(spores_data, filename):
+    techs_2030 = set(spores_data.get("2030").get(filename).index.unique(level="technology"))
+    techs_2050 = set(spores_data.get("2050").get(filename).index.unique(level="technology"))
+
+    common_techs = techs_2030.intersection(techs_2050)
+    unique_techs_in_2030 = techs_2030.difference(techs_2050)
+    unique_techs_in_2050 = techs_2050.difference(techs_2030)
+
+    print(f"Technologies that exist in 2030 & 2050 (file: {filename})")
+    print(common_techs)
+    print("")
+    print(f"Technologies that exist only in 2030 (file: {filename})")
+    print(unique_techs_in_2030)
+    print("")
+    print(f"Technologies that exist only in 2050 (file: {filename})")
+    print(unique_techs_in_2050)
+    print("")
+
+
+def rename_spores_to_spore(path_to_csv_file):
+    df = pd.read_csv(path_to_csv_file)
+    if "spores" in df.columns:
+        print(f"Renaming 'spores' to 'spore' in column names of file \n {path_to_csv_file}")
+        df.rename(columns={"spores": "spore"}, inplace=True)
+        df.to_csv(path_to_csv_file, index=False)
+
+
+def match_column_name_with_index_file(directory):
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if file.endswith(".csv"):
+                file_path = os.path.join(root, file)
+                rename_spores_to_spore(file_path)
+
+
 def aggregate_categorised_spores(path_to_spores, path_to_result):
     """
     This function aggregates a categorised set of SPORES that has .csv files in multiple folders for each subset of SPORES into a set of SPORES that contains files with all SPORES that exist within the directory.
@@ -30,9 +65,11 @@ def aggregate_categorised_spores(path_to_spores, path_to_result):
     file_names = set()
     for root, dirs, files in os.walk(path_to_spores):
         for file in files:
-            file_names.add(file)
+            if file != '.DS_Store':
+                file_names.add(file)
     # Process each filename
-    for file_name in files:
+    for file_name in file_names:
+        print(f"Aggregating {file_name}")
         # Create a new filename in the result directory
         result_file_path = os.path.join(path_to_result, file_name)
         result_file = open(result_file_path, "w")
@@ -56,7 +93,7 @@ def aggregate_categorised_spores(path_to_spores, path_to_result):
         # Close the result file
         result_file.close()
 
-def read_spores_data(path_to_spores, slack="slack-10", file_names=None):
+def read_spores_data(path_to_spores, file_names=None):
     """
     This function reads the SPORES dataset.
     :param path_to_spores:      The path to the SPORES dataset.
@@ -68,8 +105,8 @@ def read_spores_data(path_to_spores, slack="slack-10", file_names=None):
                                 The dataframes can be accessed as data[filename].
     """
 
-    print(f"Loading files in directory {path_to_spores}/{slack}")
-    dpkg = Package(os.path.join(path_to_spores, slack, "datapackage.json"))
+    print(f"Loading files in directory {path_to_spores}")
+    dpkg = Package(os.path.join(path_to_spores, "datapackage.json"))
     resources = dpkg["resources"]
     if file_names is not None:
         print(f"Reading .csv files: {file_names}")
@@ -127,7 +164,7 @@ def generate_sim_data(data_2050):
             sim_data["2030"][filename] = data_2050[filename]
             # sim_data["2020"][filename] = data_2050[filename]
 
-        if "spore" in data["2050"][filename].index.names:
+        if "spore" in data_2050["2050"][filename].index.names:
             # Filter all data that contains the column "spore" on the selected spores
             sim_data["2050"][filename] = data_2050[filename][spores]
             # # Add a column "spore" to the simulated 2020 data and set "spore" to 0 (needed because functions rely on a column with the spore number)
@@ -135,6 +172,7 @@ def generate_sim_data(data_2050):
             #     {0: sim_data["2020"][filename]}, names=["spore"]
             # )
     return sim_data
+
 
 def get_power_capacity(spores_data, result_path, save_to_csv=False):
     """
@@ -147,6 +185,8 @@ def get_power_capacity(spores_data, result_path, save_to_csv=False):
 
     power_capacity = pd.Series(dtype="float64")
     for year in spores_data.keys():
+        print(f"YEAR: {year}")
+        print(spores_data.get(year).get(file_name))
         capacity_data = spores_data.get(year).get(file_name)
         capacity_national = (
             capacity_data.xs("tw", level="unit")
@@ -189,6 +229,7 @@ def get_power_capacity(spores_data, result_path, save_to_csv=False):
         power_capacity.to_csv(os.path.join(result_path, "power_capacity.csv"))
     else:
         return power_capacity
+
 
 def get_heat_capacity(spores_data, result_path, save_to_csv=False):
     """
@@ -245,6 +286,7 @@ def get_heat_capacity(spores_data, result_path, save_to_csv=False):
     else:
         return heat_capacity
 
+
 def get_storage_capacity(spores_data, result_path, save_to_csv=False):
     """
 
@@ -292,6 +334,7 @@ def get_storage_capacity(spores_data, result_path, save_to_csv=False):
     else:
         return storage_capacity
 
+
 def get_grid_capacity(
     spores_data, result_path, expansion_only=False, save_to_csv=False
 ):
@@ -313,7 +356,7 @@ def get_grid_capacity(
         capacity = (
             capacity_data.unstack("spore")
             .groupby(
-                ["importing_region", "exporting_region", GRID_TECHS_SPORES],
+                [REGION_MAPPING, REGION_MAPPING, GRID_TECHS_SPORES],
                 level=["importing_region", "exporting_region", "technology"],
             )
             .sum()
@@ -343,6 +386,7 @@ def get_grid_capacity(
         grid_capacity.to_csv(os.path.join(result_path, f"{file_name}.csv"))
     else:
         return grid_capacity
+
 
 def get_power_capacity_irenastat(path, save_to_csv=False):
     # FIXME: make this function compatible with the .csv download (remove first rows and deal with column title difference)
