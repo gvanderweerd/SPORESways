@@ -93,6 +93,7 @@ def aggregate_categorised_spores(path_to_spores, path_to_result):
         # Close the result file
         result_file.close()
 
+
 def read_spores_data(path_to_spores, file_names=None):
     """
     This function reads the SPORES dataset.
@@ -118,6 +119,7 @@ def read_spores_data(path_to_spores, file_names=None):
 
     data = {resource["name"]: to_df(resource).squeeze() for resource in resources}
     return data
+
 
 def generate_sim_data(data_2050):
     """
@@ -174,6 +176,146 @@ def generate_sim_data(data_2050):
     return sim_data
 
 
+def add_transport_electrification(data_dict):
+    # Calculate transport electrification
+    electric_transport = (
+        data_dict.get("flow_out_sum")
+        .unstack("technology")
+        .reindex(["light_transport_ev", "heavy_transport_ev"], axis=1)
+        .sum(axis=1, min_count=1)
+        .groupby("spore")
+        .sum()
+    )
+    all_transport = (
+        data_dict.get("flow_out_sum")
+        .xs("transport", level="carriers")
+        .groupby("spore")
+        .sum()
+    )
+    transport_electrification = 100 * electric_transport / all_transport
+    # Set indices and name
+    transport_electrification.index = pd.MultiIndex.from_product([transport_electrification.index, ["percentage"]], names=["spore", "unit"])
+    transport_electrification.name = "transport_electrification"
+
+    return transport_electrification
+
+
+def add_heat_electrification(data_dict):
+    # Calculate heat electrification
+    electric_heat = (
+        data_dict["flow_out_sum"]
+        .unstack("technology")
+        .reindex(["hp", "electric_heater", "electric_hob"], axis=1)
+        .sum(axis=1, min_count=1)
+        .groupby("spore")
+        .sum()
+    )
+    all_heat = (
+        data_dict["flow_out_sum"]
+        .unstack("technology")
+        .reindex(HEAT_TECHS_BUILDING + HEAT_TECHS_DISTRICT + COOKING_TECHS , axis=1)
+        .sum(axis=1)
+        .unstack("carriers")
+        .loc[:, ["heat", "cooking"]]
+        .sum(axis=1)
+        .groupby("spore")
+        .sum()
+    )
+    heat_electrification = 100 * electric_heat / all_heat
+    # Set indices and name
+    heat_electrification.index = pd.MultiIndex.from_product([heat_electrification.index, ["percentage"]], names=["spore", "unit"])
+    heat_electrification.name = "heat_electrification"
+
+    return heat_electrification
+
+
+def add_electricity_production_gini(data_dict):
+    electricity_production_gini = (
+        data_dict.get("flow_out_sum")
+        .xs("electricity", level="carriers")
+        .unstack("technology")
+        .reindex(list(ENERGY_PRODUCERS.keys()) + HEAT_TECHS_DISTRICT, axis=1)
+        .sum(axis=1)
+        .groupby(level=["spore", "region"])
+        .sum()
+        .groupby(level="spore").apply(get_gini)
+    )
+    # Set indices and name
+    electricity_production_gini.index = pd.MultiIndex.from_product([electricity_production_gini.index, ["fraction"]], names=["spore", "unit"])
+    electricity_production_gini.name = "electricity_production_gini"
+
+    return electricity_production_gini
+
+
+def add_storage_discharge_capacity(data_dict):
+    storage_discharge_capacity = (
+        data_dict.get("nameplate_capacity")
+        .unstack("technology")
+        .reindex(STORAGE_DISCHARGE_TECHS, axis=1)
+        .sum(axis=1)
+        .groupby("spore")
+        .sum()
+    )
+    # Set indices and name
+    storage_discharge_capacity.index = pd.MultiIndex.from_product([storage_discharge_capacity.index, ["tw"]], names=["spore", "unit"])
+    storage_discharge_capacity.name = "storage_discharge_capacity"
+
+    return storage_discharge_capacity
+
+
+def add_average_national_imports(data_dict):
+    average_national_import = (
+        data_dict.get("net_import_sum").unstack(["spore", "unit"])
+        .groupby(
+            [_region_to_country, _region_to_country],
+            level=["importing_region", "exporting_region"]
+        ).sum().where(lambda x: x > 0).mean()
+    )
+    # Set name
+    average_national_import.name = "average_national_import"
+
+    return average_national_import
+
+
+def get_paper_metrics(data_dict, result_path, save_to_csv=False):
+    # Add metrics
+    metrics = pd.concat([
+        add_transport_electrification(data_dict),
+        add_heat_electrification(data_dict),
+        add_electricity_production_gini(data_dict),
+        add_storage_discharge_capacity(data_dict),
+        #FIXME: average_national_imports does not produce the same result as we find in "average_national_imports.csv" in 2050 euro-spores-results
+        add_average_national_imports(data_dict)
+    ], axis=1).rename_axis("metric", axis=1).stack()
+    # Reorder indices and name data
+    metrics.index = metrics.index.reorder_levels(["spore", "metric", "unit"])
+    metrics.name = "paper_metrics"
+
+    # Save to .csv or return dataframe
+    if save_to_csv:
+        metrics.to_csv(os.path.join(result_path, "paper_metrics.csv"))
+    else:
+        return metrics
+
+
+def get_gini(metric):
+    """
+    Get the gini index for a particular metric.
+    This is used to give an indication of the spatial 'equity' of a metric.
+    """
+
+    results = []
+    vals = metric.values
+    for i in vals:
+        for j in vals:
+            results.append(abs(i - j))
+    return sum(results) / (2 * len(vals)**2 * vals.mean())
+
+
+def _region_to_country(region):
+    return region.split("_")[0]
+
+
 def get_power_capacity(spores_data, result_path, save_to_csv=False):
     """
 
@@ -185,8 +327,8 @@ def get_power_capacity(spores_data, result_path, save_to_csv=False):
 
     power_capacity = pd.Series(dtype="float64")
     for year in spores_data.keys():
-        print(f"YEAR: {year}")
-        print(spores_data.get(year).get(file_name))
+        # print(f"YEAR: {year}")
+        # print(spores_data.get(year).get(file_name))
         capacity_data = spores_data.get(year).get(file_name)
         capacity_national = (
             capacity_data.xs("tw", level="unit")
@@ -333,6 +475,9 @@ def get_storage_capacity(spores_data, result_path, save_to_csv=False):
         storage_capacity.to_csv(os.path.join(result_path, f"{file_name}.csv"))
     else:
         return storage_capacity
+
+
+
 
 
 def get_grid_capacity(

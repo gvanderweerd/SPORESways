@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
 
-# Technology sets
+"""
+TECHNOLOGY SETS
+"""
+# Primary energy sources
 PRIMARY_ENERGY_SOURCES = {
     "waste_supply": "Waste",
     "biofuel_supply": "Biofuels",
@@ -15,6 +18,46 @@ PRIMARY_ENERGY_SOURCES = {
     "natural_gas_supply": "Natural gas",
     "oil_supply": "Oil",
 }
+ENERGY_PRODUCERS = {
+    "waste_supply": "Waste",
+    "biofuel_supply": "Biofuels",
+    "hydro_reservoir": "Renewable electricity",
+    "hydro_run_of_river": "Renewable electricity",
+    "nuclear": "Nuclear electricity",
+    "open_field_pv": "Renewable electricity",
+    "roof_mounted_pv": "Renewable electricity",
+    "wind_offshore": "Renewable electricity",
+    "wind_onshore": "Renewable electricity",
+}
+
+# Heat sector
+HEAT_TECHS_BUILDING = ['biofuel_boiler', 'electric_heater', 'hp', 'methane_boiler']
+HEAT_TECHS_DISTRICT = [
+    'chp_biofuel_extraction', 'chp_methane_extraction', 'chp_wte_back_pressure', 'chp_hydrogen'
+]
+COOKING_TECHS = ["electric_hob", "gas_hob"]
+HEAT_PRODUCERS = {
+    # the full capacity of CHP is assigned in ELECTRICITY_PRODUCERS_SPORES (therefore this capacity is considered in power data and not in heat)
+    "biofuel_boiler": "Boiler",
+    "electric_heater": "Electric heater",
+    "hp": "Heat pump",
+    "methane_boiler": "Boiler",
+}
+
+# Electricity sector
+
+# Storage
+STORAGE_DISCHARGE_TECHS = [
+    'battery_storage',
+    'heat_storage_big',
+    'heat_storage_small',
+    'hydro_storage',
+    'hydrogen_storage',
+    'ccgt'
+]
+
+
+
 
 # FIXME: base these numbers on research
 ELECTRICITY_PRODUCERS_LIFE = {
@@ -36,8 +79,8 @@ GRID_TECHS_SPORES = {
 ELECTRICITY_PRODUCERS_SPORES = {
     "open_field_pv": "PV",
     "roof_mounted_pv": "PV",
-    "wind_offshore": "Wind",
-    "wind_onshore": "Wind",
+    "wind_offshore": "Offshore wind",
+    "wind_onshore": "Onshore wind",
     "coal_power_plant": "Coal",
     "ccgt": "CCGT",
     "chp_biofuel_extraction": "CHP",
@@ -66,13 +109,7 @@ vRES_PRODUCERS = {
     "wind_offshore": "vRES",
     "wind_onshore": "vRES",
 }
-HEAT_PRODUCERS = {
-    # the full capacity of CHP is assigned in ELECTRICITY_PRODUCERS_SPORES (therefore this capacity is considered in power data and not in heat)
-    "biofuel_boiler": "Boiler",
-    "electric_heater": "Electric heater",
-    "hp": "Heat pump",
-    "methane_boiler": "Boiler",
-}
+
 EL_HEAT_PRODUCERS = {
     # "biofuel_boiler": "Fuel",
     # "chp_biofuel_extraction": "Fuel",
@@ -260,6 +297,18 @@ REGION_MAPPING = {
     "SWE_4": "Sweden",
 }
 COUNTRIES = np.unique(list(REGION_MAPPING.values()))
+
+YEARS = range(2010, 2051)
+POWER_TECH_ORDER = [
+    "PV",
+    "Onshore wind",
+    "Offshore wind",
+    "CHP",
+    "CCGT",
+    "Nuclear",
+    "Hydro",
+    "Bio to liquids",
+]
 
 # Define x-axis for past-, projected-, and spores-capacity data
 years_2000_2050 = np.arange(2000, 2051)
