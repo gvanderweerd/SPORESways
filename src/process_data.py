@@ -2,101 +2,143 @@ import os
 from utils.data_io import *
 
 
-if __name__ == '__main__':
-    # Set parameters
-    years = ["2030", "2050"]
-    save_processed_data = False
-
-    # Set this to a list of years (like ["2030"]) if the spores results are provided in different folders for different categories of spores results
-    # Set this to None if spores results are provided in one folder containing all spores
-    categorised_spores_years = None
-
-    # Aggregate spores results that are provided in different folders for different categories of spores results instead of having all spores in each file
-    if categorised_spores_years is not None:
-        for year in categorised_spores_years:
-            aggregate_categorised_spores(
-                path_to_spores=os.path.join(os.getcwd(), "..", "data", "raw", f"euro-spores-results-{year}", "categorised"),
-                path_to_result=os.path.join(os.getcwd(), "..", "data", "raw", f"euro-spores-results-{year}", "aggregated", "data")
-            )
-        #FIXME: we need to manually change the title name of the grid capacity from "grid_transfer_capacity.csv" to "grid_transfer_capacity.csv"
-
-
-    # Define path to where the raw euro-spores-results can be found
-    paths_to_raw_spores = {
-        "2030": os.path.join(os.getcwd(), "..", "data", "raw", "euro-spores-results-2030", "aggregated"),
-        "2050": os.path.join(os.getcwd(), "..", "data", "raw", "euro-spores-results-2050", "aggregated-slack-10")
-    }
-    match_column_name_with_index_file(paths_to_raw_spores.get("2030"))
-
-    # Define path to where the script will save the processed spores results
-    path_to_processed_spores = os.path.join(os.getcwd(), "..", "data", "processed")
-
+def get_raw_data(paths_to_raw_data, years):
     # Define which files we want to read
     files = [
         "nameplate_capacity",
         "grid_transfer_capacity",
         "storage_capacity",
         "flow_out_sum",
-        "net_import_sum"
+        "net_import_sum",
     ]
 
     # Read spores results for the years that were defined
     data = {}
     for year in years:
-        data[year] = read_spores_data(path_to_spores=paths_to_raw_spores[year], file_names=files)
+        data[year] = read_spores_data(
+            path_to_spores=paths_to_raw_data[year], file_names=files
+        )
 
+    return data
+
+
+def get_processed_data(spores_data, path_to_processed_data, save):
+    for year in spores_data.keys():
         # If the directory data/processed/{year} does not exist make directory
-        path_to_result = os.path.join(path_to_processed_spores, year)
+        path_to_result = os.path.join(path_to_processed_data, year)
         if not os.path.exists(path_to_result):
             os.makedirs(path_to_result)
 
         # Calculate metrics (used in Pickering et al. 2022)
-        paper_metrics = get_paper_metrics(data_dict=data.get(year), result_path=path_to_result, save_to_csv=True)
+        paper_metrics = get_paper_metrics(
+            data_dict=spores_data.get(year),
+            result_path=path_to_result,
+            save_to_csv=save,
+        )
 
         # Process spores results:
         #   - to a national level (and include total values for the whole continent under region "Europe")
         #   - combine the results for all years in that are defined in one file
-        power = get_power_capacity(
-            spores_data=data, result_path=path_to_result, save_to_csv=True
+        power = get_power_capacity2(
+            spores_data=spores_data.get(year),
+            result_path=path_to_result,
+            save_to_csv=save,
         )
 
 
-    # Comparison of the difference and overlap of technologies that exist in 2030 and 2050
-    # compare_technologies_2030_vs_2050(data, "nameplate_capacity")
-    # compare_technologies_2030_vs_2050(data, "storage_capacity")
+if __name__ == "__main__":
+    """
+    0. SET PARAMETERS
+    """
 
-    # Process spores results:
-    #   - to a national level (and include total values for the whole continent under region "Europe")
-    #   - combine the results for all years in that are defined in one file
-    power = get_power_capacity(
-        spores_data=data, result_path=path_to_processed_spores, save_to_csv=save_processed_data
+    # Years for which we want to process spores results
+    years = ["2030", "2050"]
+
+    # Set to True if you want processed data to be saved as new csv files
+    save_processed_data = False
+
+    # Set this to a list of years (like ["2030"]) if the spores results are provided in different folders for different categories of spores results
+    # Set this to None if spores results are provided in one folder containing all spores
+    categorised_spores_years = None
+
+    # Define path to where the raw euro-spores-results can be found
+    paths_to_raw_spores = {
+        "2030": os.path.join(
+            os.getcwd(), "..", "data", "raw", "euro-spores-results-2030", "aggregated"
+        ),
+        "2050": os.path.join(
+            os.getcwd(),
+            "..",
+            "data",
+            "raw",
+            "euro-spores-results-2050",
+            "aggregated-slack-10",
+        ),
+    }
+
+    # Define path to where the script will save the processed spores results
+    path_to_processed_spores = os.path.join(os.getcwd(), "..", "data", "processed")
+
+    """
+    1. PROCESS DATA
+    """
+
+    # Aggregate spores results that are provided in different folders for different categories of spores results instead of having all spores in each file
+    if categorised_spores_years is not None:
+        for year in categorised_spores_years:
+            aggregate_categorised_spores(
+                path_to_spores=os.path.join(
+                    os.getcwd(),
+                    "..",
+                    "data",
+                    "raw",
+                    f"euro-spores-results-{year}",
+                    "categorised",
+                ),
+                path_to_result=os.path.join(
+                    os.getcwd(),
+                    "..",
+                    "data",
+                    "raw",
+                    f"euro-spores-results-{year}",
+                    "aggregated",
+                    "data",
+                ),
+            )
+        # FIXME: we need to manually change the title name of the grid capacity from "grid_transfer_capacity.csv" to "grid_transfer_capacity.csv"
+
+    # Change column names from "spores" to "spore" in the .csv files that have this column
+    match_column_name_with_index_file(paths_to_raw_spores.get("2030"))
+
+    # Get raw data
+    data = get_raw_data(paths_to_raw_data=paths_to_raw_spores, years=years)
+    # Process spores and save to "processed data"
+    get_processed_data(
+        spores_data=data,
+        path_to_processed_data=path_to_processed_spores,
+        save=save_processed_data,
     )
-    heat = get_heat_capacity(
-        spores_data=data, result_path=path_to_processed_spores, save_to_csv=save_processed_data
-    )
-    storage = get_storage_capacity(
-        spores_data=data, result_path=path_to_processed_spores, save_to_csv=save_processed_data
-    )
-
-    #FIXME: how do we deal with the difference in spatial granularity? 2030 has national granualarity so it only contains international grid capacity, the grid capacity within each country is lost
-    #Look to add_average_national_import() in data_io.py!
-
-    # grid = get_grid_capacity(
-    #     spores_data=data, result_path=path_to_processed_spores, save_to_csv=save_processed_spores
-    # )
-
 
     """
     COMPARE PAPER METRICS CALCULATION
     """
     # Get paper metrics of 2050 for comparison
-    paper_metrics_2050 = read_spores_data(path_to_spores=paths_to_raw_spores["2050"], file_names=["paper_metrics"]).get("paper_metrics")
+    paper_metrics_2050 = read_spores_data(
+        path_to_spores=paths_to_raw_spores["2050"], file_names=["paper_metrics"]
+    ).get("paper_metrics")
     # Get paper metrics from own calculation
-    paper_metrics_2050_calculated = get_paper_metrics(data_dict=data.get("2050"), result_path=os.path.join(path_to_processed_spores, "2050"), save_to_csv=False)
+    paper_metrics_2050_calculated = get_paper_metrics(
+        data_dict=data.get("2050"),
+        result_path=os.path.join(path_to_processed_spores, "2050"),
+        save_to_csv=False,
+    )
 
     # Filter out 1 metric for comparison
     metric = "electricity_production_gini"
 
     # Compare metric calculatino result
-    difference = paper_metrics_2050_calculated.loc[:, metric, :, :] - paper_metrics_2050.loc[:, metric, :, :]
+    difference = (
+        paper_metrics_2050_calculated.loc[:, metric, :, :]
+        - paper_metrics_2050.loc[:, metric, :, :]
+    )
     print(difference.describe())
