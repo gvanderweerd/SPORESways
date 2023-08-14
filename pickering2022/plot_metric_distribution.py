@@ -331,7 +331,7 @@ def get_metric_plot_df(path_to_friendly_data, normalise=True, percentage_best=10
     all_metric_array = []
     for metric in data_dict["paper_metrics"].index.get_level_values("metric").unique():
         if normalise:
-            normalised_series = data_dict["paper_metrics"].div(data_dict["paper_metrics"].max(level="metric"))
+            normalised_series = data_dict["paper_metrics"].div(data_dict["paper_metrics"].groupby(level="metric").max())
             best_spores = get_best_performing_spores(
                 normalised_series, metric, percentage_best, normalised=True
             ).index

@@ -1,0 +1,8 @@
+pandas~=2.0.3
+geopandas~=0.13.2
+matplotlib~=3.7.2
+seaborn~=0.12.2
+numpy~=1.25.2
+shapely~=2.0.1
+PyYAML~=6.0.1
+frictionless~=4.0.13
