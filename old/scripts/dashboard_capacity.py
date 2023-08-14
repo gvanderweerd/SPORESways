@@ -111,7 +111,7 @@ REGION_MAPPING = {
     "SWE_4": "Sweden",
 }
 COUNTRIES = np.unique(list(REGION_MAPPING.values()))
-YEARS = ["2030", "2050"]
+YEARS = ["categorised_spores", "2050"]
 
 # Defines the technology family to which each technology belongs for technologies in the power sector
 ELECTRICITY_PRODUCERS = {
@@ -145,7 +145,7 @@ Obtaining data
 """
 # Define to spores data
 paths = {
-    "2050": os.path.join(os.getcwd(), "data", "euro-spores-results-v2022-05-13"),
+    "2050": os.path.join(os.getcwd(), "../data", "euro-spores-results-v2022-05-13"),
 }
 # Define for which cost relaxation we want to read the data
 slack = "slack-10"

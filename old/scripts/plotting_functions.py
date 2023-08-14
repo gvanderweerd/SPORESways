@@ -266,7 +266,9 @@ def plot_normalised_cluster_map(data, year, region):
         columns=data.index.get_level_values("technology").unique(),
     )
     ranges = data.groupby("technology").agg(["min", "max"])
-
+    print("TEST2")
+    print(data)
+    print(data_normalised)
     # FIXME: arange the order of the technologies such that they are visualised from top to bottom ('power', 'heat', 'grid', 'storage')
     # FIXME: find out how to set white spacing inbetween sectors such that all power technologies are together but there is a white space between the power technologies and the heat technologies
     #

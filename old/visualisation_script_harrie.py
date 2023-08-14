@@ -1,60 +1,159 @@
 import string
 import yaml
 import os
-import shutil
 import numpy as np
 import pandas as pd
 import csv
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 from friendly_data.converters import to_df
 from frictionless.resource import Resource
 from frictionless.package import Package
+from sklearn.preprocessing import MinMaxScaler
 
-from global_parameters import *
-from processing_functions import *
-
+# Define the order of the index for the capacity data series
 INDEX_NAME_ORDER = ["year", "region", "technology", "spore"]
+# Locations
+REGION_MAPPING = {
+    "ALB_1": "Albania",
+    "AUT_1": "Austria",
+    "AUT_2": "Austria",
+    "AUT_3": "Austria",
+    "BEL_1": "Belgium",
+    "BGR_1": "Bulgaria",
+    "BIH_1": "Bosnia Herzegovina",  #'Bosniaand\nHerzegovina'
+    "CHE_1": "Switzerland",
+    "CHE_2": "Switzerland",
+    "CYP_1": "Cyprus",
+    "CZE_1": "Czechia",
+    "CZE_2": "Czechia",
+    "DEU_1": "Germany",
+    "DEU_2": "Germany",
+    "DEU_3": "Germany",
+    "DEU_4": "Germany",
+    "DEU_5": "Germany",
+    "DEU_6": "Germany",
+    "DEU_7": "Germany",
+    "DNK_1": "Denmark",
+    "DNK_2": "Denmark",
+    "ESP_1": "Spain",
+    "ESP_10": "Spain",
+    "ESP_11": "Spain",
+    "ESP_2": "Spain",
+    "ESP_3": "Spain",
+    "ESP_4": "Spain",
+    "ESP_5": "Spain",
+    "ESP_6": "Spain",
+    "ESP_7": "Spain",
+    "ESP_8": "Spain",
+    "ESP_9": "Spain",
+    "EST_1": "Estonia",
+    "FIN_1": "Finland",
+    "FIN_2": "Finland",
+    "FRA_1": "France",
+    "FRA_10": "France",
+    "FRA_11": "France",
+    "FRA_12": "France",
+    "FRA_13": "France",
+    "FRA_14": "France",
+    "FRA_15": "France",
+    "FRA_2": "France",
+    "FRA_3": "France",
+    "FRA_4": "France",
+    "FRA_5": "France",
+    "FRA_6": "France",
+    "FRA_7": "France",
+    "FRA_8": "France",
+    "FRA_9": "France",
+    "GBR_1": "United Kingdom",
+    "GBR_2": "United Kingdom",
+    "GBR_3": "United Kingdom",
+    "GBR_4": "United Kingdom",
+    "GBR_5": "United Kingdom",
+    "GBR_6": "United Kingdom",  # Northern Ireland
+    "GRC_1": "Greece",
+    "GRC_2": "Greece",
+    "HRV_1": "Croatia",
+    "HUN_1": "Hungary",
+    "IRL_1": "Ireland",
+    "ISL_1": "Iceland",
+    "ITA_1": "Italy",
+    "ITA_2": "Italy",
+    "ITA_3": "Italy",
+    "ITA_4": "Italy",
+    "ITA_5": "Italy",
+    "ITA_6": "Italy",
+    "LTU_1": "Lithuania",
+    "LUX_1": "Luxembourg",
+    "LVA_1": "Latvia",
+    "MKD_1": "North Macedonia",  #'North Macedonia'
+    "MNE_1": "Montenegro",
+    "NLD_1": "Netherlands",
+    "NOR_1": "Norway",
+    "NOR_2": "Norway",
+    "NOR_3": "Norway",
+    "NOR_4": "Norway",
+    "NOR_5": "Norway",
+    "NOR_6": "Norway",
+    "NOR_7": "Norway",
+    "POL_1": "Poland",
+    "POL_2": "Poland",
+    "POL_3": "Poland",
+    "POL_4": "Poland",
+    "POL_5": "Poland",
+    "PRT_1": "Portugal",
+    "PRT_2": "Portugal",
+    "ROU_1": "Romania",
+    "ROU_2": "Romania",
+    "ROU_3": "Romania",
+    "SRB_1": "Serbia",
+    "SVK_1": "Slovakia",
+    "SVN_1": "Slovenia",
+    "SWE_1": "Sweden",
+    "SWE_2": "Sweden",
+    "SWE_3": "Sweden",
+    "SWE_4": "Sweden",
+}
+COUNTRIES = np.unique(list(REGION_MAPPING.values()))
+# Define mapping dictionaries that sum values for similar technologies under the same name (e.g. values for roof_mounted_pv and open_field_pv are summed under the name PV)
+HEAT_PRODUCERS = {
+    "biofuel_boiler": "Boiler",
+    "electric_heater": "Electric heater",
+    "hp": "Heat pump",
+    "methane_boiler": "Boiler",
+}
+STORAGE_TECHNOLOGIES = {
+    "battery": "Battery storage",
+    "heat_storage_big": "Heat storage",
+    "heat_storage_small": "Heat storage",
+    "hydro_reservoir": "Hydro storage",
+    "pumped_hydro": "Hydro storage",
+    "hydrogen_storage": "Hydrogen storage",
+    "methane_storage": "Methane storage",
+}
+GRID_TECHS_SPORES = {"ac_transmission": "AC grid", "dc_transmission": "DC grid"}
+ELECTRICITY_PRODUCERS_SPORES = {
+    "open_field_pv": "PV",
+    "roof_mounted_pv": "PV",
+    "wind_offshore": "Offshore wind",
+    "wind_onshore": "Onshore wind",
+    "ccgt": "CCGT",
+    "chp_biofuel_extraction": "CHP",
+    "chp_methane_extraction": "CHP",
+    "chp_wte_back_pressure": "CHP",
+    "hydro_reservoir": "Hydro",
+    "hydro_run_of_river": "Hydro",
+    "nuclear": "Nuclear",
+}
 
-
-def aggregate_categorised_spores(path_to_spores, path_to_result):
-    """
-    This function aggregates a categorised set of SPORES that has .csv files in multiple folders for each subset of SPORES into a set of SPORES that contains files with all SPORES that exist within the directory.
-    :param path_to_spores: path to the directory where the categorised SPORES are placed
-    :param path_to_result: path to the directory where the aggregated SPORES should be saved
-    :return:
-    """
-    # Make new folder for aggregated spores if it does not exist yet
-    if not os.path.exists(path_to_result):
-        os.makedirs(path_to_result)
-    # Get all unique filenames in the directory
-    file_names = set()
-    for root, dirs, files in os.walk(path_to_spores):
-        for file in files:
-            file_names.add(file)
-    # Process each filename
-    for file_name in files:
-        # Create a new filename in the result directory
-        result_file_path = os.path.join(path_to_result, file_name)
-        result_file = open(result_file_path, "w")
-        # Flag to indicate if top row with column names has been written
-        top_row_written = False
-
-        # Iterate of each subdirectory
-        for root, dirs, files in os.walk(path_to_spores):
-            # Check if the file exists
-            if file_name in files:
-                # Read the content of the file and write it to the result file
-                file_path = os.path.join(root, file_name)
-                with open(file_path, "r") as file:
-                    # Skip first row if with column names if it has been written
-                    if top_row_written:
-                        next(file)
-                    else:
-                        top_row_written = True
-                    # Write remaining rows to the resultfile
-                    shutil.copyfileobj(file, result_file)
-        # Close the result file
-        result_file.close()
+# Define open circles for plotting 'All other SPORES'
+pts = np.linspace(0, np.pi * 2, 24)
+circ = np.c_[np.sin(pts) / 2, -np.cos(pts) / 2]
+vert = np.r_[circ, circ[::-1] * 0.7]
+open_circle = mpl.path.Path(vert)
 
 
 def read_spores_data(path_to_spores, slack="slack-10", file_names=None):
@@ -84,65 +183,10 @@ def read_spores_data(path_to_spores, slack="slack-10", file_names=None):
     return data
 
 
-def generate_sim_data(data_2050):
-    """
-    This function simulates a smaller dataset that contains data for the years 2020, 2030, and 2050 that is easier to handle and speeds up testing code.
-
-    :param data_2050:       SPORES data from 2050.
-    :return:                A dictionary that contains simulated SPORES data for 2020, 2030 and 2050, based on 11 SPORES.
+def get_power_capacity(spores_data, save_to_csv=False):
     """
 
-    spores = [0, 21, 32, 77, 100, 206, 255, 263, 328, 345, 431]
-    spores = range(441)
-    """
-    Select 11 SPORES for simulated data
-    0 - ?
-    21 - High onshore
-    32 - No biofuel utilisation (0%)
-    77 - Low PV
-    100 - Low heat electrification
-    206 - High heat electrification
-    255 - Low storage capacity
-    263 - High PV
-    328 - High grid capacity expansion
-    345 - Low grid capacity expansion
-    431 - High storage capacity
-    """
-
-    sim_data = {"2030": {}, "2050": {}}
-    for filename in data_2050.keys():
-        # Simulate a 2020 and 2030 dataset based on the 2050 dataset and a random factor if the file contains numbers as data, else just copy the file
-        if data_2050[filename].dtype == np.float64:
-            # Multiply selected spores data for 2050 with a randomising factor between 0 and 0.4
-            sim_data["2030"][filename] = (
-                data_2050[filename][spores]
-                * 0.4
-                * np.random.random(len(data_2050[filename][spores]))
-            )
-            # # Multiply spore 0 data for 2050 with a randomising factor between 0 and 0.1
-            # sim_data["2020"][filename] = (
-            #     data_2050[filename][0]
-            #     * 0.1
-            #     * np.random.random(len(data_2050[filename][0]))
-            # )
-        else:
-            sim_data["2030"][filename] = data_2050[filename]
-            # sim_data["2020"][filename] = data_2050[filename]
-
-        if "spore" in data["2050"][filename].index.names:
-            # Filter all data that contains the column "spore" on the selected spores
-            sim_data["2050"][filename] = data_2050[filename][spores]
-            # # Add a column "spore" to the simulated 2020 data and set "spore" to 0 (needed because functions rely on a column with the spore number)
-            # sim_data["2020"][filename] = pd.concat(
-            #     {0: sim_data["2020"][filename]}, names=["spore"]
-            # )
-    return sim_data
-
-
-def get_power_capacity(spores_data, result_path, save_to_csv=False):
-    """
-
-    :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
+    :param spores_data:     A dictionary that contains SPORES data for 2020, categorised_spores and 2050.
     :param save_to_csv:     Set to True if you want to save the capacity data to a .csv file called "power_capacity.csv"
     :return:                A Series containing the capacities of electricity producting technologies for each country and for Europe as a whole
     """
@@ -189,15 +233,15 @@ def get_power_capacity(spores_data, result_path, save_to_csv=False):
     power_capacity.name = "capacity_gw"
 
     if save_to_csv:
-        power_capacity.to_csv(os.path.join(result_path, "power_capacity.csv"))
+        power_capacity.to_csv(f"data/power_capacity.csv")
     else:
         return power_capacity
 
 
-def get_heat_capacity(spores_data, result_path, save_to_csv=False):
+def get_heat_capacity(spores_data, save_to_csv=False):
     """
 
-    :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
+    :param spores_data:     A dictionary that contains SPORES data for 2020, categorised_spores and 2050.
     :param save_to_csv:     Set to True if you want to save the capacity data to a .csv file called "heat_capacity.csv"
     :return:                A Series containing the capacities of heat producting technologies for each country and for Europe as a whole
     """
@@ -245,15 +289,15 @@ def get_heat_capacity(spores_data, result_path, save_to_csv=False):
     heat_capacity.name = "capacity_gw"
 
     if save_to_csv:
-        heat_capacity.to_csv(os.path.join(result_path, "heat_capacity.csv"))
+        heat_capacity.to_csv(f"data/heat_capacity.csv")
     else:
         return heat_capacity
 
 
-def get_storage_capacity(spores_data, result_path, save_to_csv=False):
+def get_storage_capacity(spores_data, save_to_csv=False):
     """
 
-    :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
+    :param spores_data:     A dictionary that contains SPORES data for 2020, categorised_spores and 2050.
     :param save_to_csv:     Set to True if you want to save the capacity data to a .csv file called "storage_capacity.csv"
     :return:                A Series containing the capacities of storage technologies for each country and for Europe as a whole
     """
@@ -293,17 +337,15 @@ def get_storage_capacity(spores_data, result_path, save_to_csv=False):
     storage_capacity.name = "capacity_twh"
 
     if save_to_csv:
-        storage_capacity.to_csv(os.path.join(result_path, f"{file_name}.csv"))
+        storage_capacity.to_csv(f"data/{file_name}.csv")
     else:
         return storage_capacity
 
 
-def get_grid_capacity(
-    spores_data, result_path, expansion_only=False, save_to_csv=False
-):
+def get_grid_capacity(spores_data, expansion_only=False, save_to_csv=False):
     """
 
-    :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
+    :param spores_data:     A dictionary that contains SPORES data for 2020, categorised_spores and 2050.
     :param save_to_csv:     Set to True if you want to save the capacity data to a .csv file called "grid_capacity.csv"
     :return:                A Series containing the capacities of all power lines
     """
@@ -346,48 +388,48 @@ def get_grid_capacity(
     grid_capacity.name = "capacity_gw"
 
     if save_to_csv:
-        grid_capacity.to_csv(os.path.join(result_path, f"{file_name}.csv"))
+        grid_capacity.to_csv(f"data/{file_name}.csv")
     else:
         return grid_capacity
 
 
-def get_power_capacity_irenastat(path, save_to_csv=False):
-    # FIXME: make this function compatible with the .csv download (remove first rows and deal with column title difference)
-    s = pd.read_csv(path, index_col=[0, 1, 2, 3], squeeze=True)
-    s = s.rename(
-        {
-            "United Kingdom of Great Britain and Northern Ireland": "United Kingdom",
-            "Republic of North Macedonia": "North Macedonia",
-        }
+def plot_capacity_distribution(ax, capacity, year, country):
+    scaler = MinMaxScaler()
+    all_techs = capacity.index.get_level_values("technology").unique()
+    capacity_normalised = pd.DataFrame(
+        scaler.fit_transform(capacity.unstack("technology")), columns=all_techs
     )
-    s = s.rename({"Country/area": "region", "Technology": "technology", "Year": "year"})
-    s = s.replace("..", 0)
-    s = s.astype(float)
+    capacity_ranges = capacity.groupby("technology").agg(["min", "max"])
 
-    power_capacity = s.groupby(
-        ["region", ELECTRICITY_PRODUCERS_IRENASTAT, "year"],
-        level=["region", "technology", "year"],
-    ).sum()
+    sns.stripplot(
+        ax=ax,
+        data=capacity_normalised,
+        marker=open_circle,
+    )
 
-    power_capacity /= 1000
-    power_capacity.name = "capacity_gw"
+    ax.set_xlabel("")
+    ax.set_ylabel("Normalised capacity")
+    ax.set_xticks(range(len(all_techs)))
+    ax.set_xticklabels(all_techs, fontsize=10)
+    xticklabels = []
+    for ticklabel in ax.get_xticklabels():
+        technology = ticklabel.get_text()
 
-    if save_to_csv:
-        power_capacity.to_csv("data/power_capacity_irenastat.csv")
-    else:
-        return power_capacity
+        if technology in capacity.index.get_level_values("technology").unique():
+            xticklabels.append(
+                f"{technology}\n{capacity_ranges.loc[technology, 'min'].round(2)} - {capacity_ranges.loc[technology, 'max'].round(2)} [GW]"
+            )
+        else:
+            xticklabels.append(f"{technology}\n0.0 - 0.0 [GW]")
+    ax.set_xticklabels(xticklabels, fontsize=10)
 
 
 if __name__ == "__main__":
 
     # Define paths to data
     paths = {
-        "2030": os.path.join(os.getcwd(), "../data", "euro-spores-results-2030"),
-        "2050": os.path.join(os.getcwd(), "../data", "euro-spores-results-v2022-05-13"),
-        "ember_electricity_data": "data/ember_data/ember_electricitydata_yearly_full_release_long_format-1.csv",
-        "irenastat_2000_2021": "data/historic_power_capacity_mw_irenastat.csv",
+        "2050": os.path.join(os.getcwd(), "data", "euro-spores-results-v2022-05-13")
     }
-    result_path = os.path.join(os.getcwd(), "../data", "continental_aggregated_spores")
     # Define for which cost relaxation we want to read the data
     slack = "slack-10"
     # Define which files we want to read
@@ -401,38 +443,46 @@ if __name__ == "__main__":
 
     data = {"2050": read_spores_data(paths["2050"], slack, files)}
 
-    # FIXME replace by reading real spores
-    # Simulating a smaller dataset for 2030 and 2050
-    data = generate_sim_data(data["2050"])
-
-    save = True
-    power = get_power_capacity(
-        spores_data=data, result_path=result_path, save_to_csv=save
-    )
-    heat = get_heat_capacity(
-        spores_data=data, result_path=result_path, save_to_csv=save
-    )
-    storage = get_storage_capacity(
-        spores_data=data, result_path=result_path, save_to_csv=save
-    )
-    grid = get_grid_capacity(
-        spores_data=data, result_path=result_path, save_to_csv=save
-    )
+    save = False
+    power = get_power_capacity(spores_data=data, save_to_csv=save)
+    heat = get_heat_capacity(spores_data=data, save_to_csv=save)
+    storage = get_storage_capacity(spores_data=data, save_to_csv=save)
+    # Grid is the total grid capacity (grid = existing grid + planned grid + grid_expansion)
+    grid = get_grid_capacity(spores_data=data, save_to_csv=save)
+    # Grid expansion is the extra expansion of the grid on top of the already existing and planned grid capacity for 2050.
     grid_expansion = get_grid_capacity(
-        spores_data=data, result_path=result_path, expansion_only=True, save_to_csv=save
+        spores_data=data, expansion_only=True, save_to_csv=save
     )
 
-    # # FIXME: this is an example of how to read in irenastat data. Move this to the function get_power_capacity_irenastat() when the lines below give the correct result
-    # s = pd.read_csv(paths.get("irenastat_2000_2021"), index_col=["Country/area", "Technology", "Grid connection", "Year"], squeeze=True)
-    # s = s.rename({"United Kingdom of Great Britain and Northern Ireland": "United Kingdom", "Republic of North Macedonia": "North Macedonia"})
-    # s = s.replace("..", 0)
-    # print(s)
-    # s = s.replace("Installed electricity capacity by country/area (MW)", np.nan)
-    # s = s.astype(float)
-    # power_capacity = s.groupby(
-    #     ["Country/area", ELECTRICITY_PRODUCERS_IRENASTAT, "Year"],
-    #     level=["Country/area", "Technology", "Year"]
-    # ).sum()
-    # print(power_capacity)
-    # power_capacity = power_capacity.rename({"Country/area": "region", "Technology": "technology", "Year": "year"})
-    # print(power_capacity)
+    # Prepare data to plot
+    country_to_plot = "Europe"
+    year_to_plot = "2050"
+    print(power)
+    print(heat)
+    print(storage)
+    print(grid)
+    power_Europe = power.loc[year_to_plot, country_to_plot, :, :]
+    heat_Europe = heat.loc[year_to_plot, country_to_plot, :, :]
+    storage_Europe = storage.loc[year_to_plot, country_to_plot, :, :]
+    # The power grid data is not aggregated for each nation since this is a 'cross border' technology, we need to sum the values of all importing-exporting regions for each technology to obtain the grid capacity for Europe
+    grid_Europe = grid.groupby(level=["technology", "spore"]).sum()
+    print(power_Europe)
+    print(heat_Europe)
+    print(storage_Europe)
+    print(grid_Europe)
+
+    fig, axs = plt.subplots(nrows=4)
+    plot_capacity_distribution(
+        ax=axs[0], capacity=power_Europe, year=2050, country=country_to_plot
+    )
+    plot_capacity_distribution(
+        ax=axs[1], capacity=heat_Europe, year=2050, country=country_to_plot
+    )
+    plot_capacity_distribution(
+        ax=axs[2], capacity=storage_Europe, year=2050, country=country_to_plot
+    )
+    plot_capacity_distribution(
+        ax=axs[3], capacity=grid_Europe, year=2050, country=country_to_plot
+    )
+
+    plt.show()
