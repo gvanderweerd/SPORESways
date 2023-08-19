@@ -32,22 +32,6 @@ pd.set_option("display.width", 200)
 # np.set_printoptions(threshold=np.inf, edgeitems=10)
 
 
-def add_cluster_index_to_series(data, cluster_mapper):
-    # Get name of the data
-    data_name = data.name
-
-    # Add cluster using cluster mapper
-    data = data.reset_index()
-    data["cluster"] = data["spore"].map(cluster_mapper)
-
-    # Get index names
-    index_names = list(data.columns)
-    index_names.remove(data_name)
-
-    # Return clustered data as a multi index series
-    return data.set_index(index_names)[data_name]
-
-
 def get_spore_to_cluster_map(clustered_data):
     return (
         clustered_data.index.to_frame(index=False)
@@ -111,47 +95,17 @@ def find_n_clusters(
 
     # Plot figures for selecting optimal number of clusters
     if plot:
-        # Using Elbow method
-        plt.figure()
-        plt.plot(range(min_clusters, max_clusters + 1), wcss, marker="o")
-        plt.xlabel("Number of Clusters")
-        plt.ylabel("WCSS")
-        plt.title(f"Elbow Method for {year}")
-
-        # Using Silhouette method
-        plt.figure()
-        plt.plot(range(min_clusters, max_clusters + 1), silhouette_scores, marker="o")
-        plt.xlabel("Number of Clusters")
-        plt.ylabel("Silhouette Score")
-        plt.title(f"Silhouette Score Method for {year}")
+        # Elbow method
+        plot_elbow_figure(wcss, min_clusters, max_clusters, spatial_resolution, year)
+        # Silhouette method
+        plot_silhouette_score(
+            silhouette_scores, min_clusters, max_clusters, spatial_resolution, year
+        )
 
     if method == "silhouette":
         return silhouette_optimal_clusters
     elif method == "elbow":
         return elbow_optimal_clusters
-
-
-def get_processed_data(path_to_processed_data):
-    years = find_years(path_to_processed_data)
-
-    power_capacity = {}
-    paper_metrics = {}
-
-    for year in years:
-        power_capacity[year] = pd.read_csv(
-            os.path.join(path_to_processed_data, year, "power_capacity.csv"),
-            index_col=["region", "technology", "spore"],
-            # squeeze=True,
-        ).squeeze()
-        # power_capacity[year].name = os.path.basename(file_path)
-
-        paper_metrics[year] = pd.read_csv(
-            os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
-            index_col=["spore", "metric", "unit"],
-            # squeeze=True,
-        ).squeeze()
-
-    return power_capacity, paper_metrics
 
 
 def prepare_data_for_clustering(data_series):
@@ -168,8 +122,10 @@ def prepare_data_for_clustering(data_series):
     )
 
 
-def save_cluster_map(cluster_map, path_to_directory):
-    file_path = os.path.join(path_to_directory, "spore_to_scenario.json")
+def save_cluster_map(cluster_map, path_to_directory, spatial_granularity):
+    file_path = os.path.join(
+        path_to_directory, f"spore_to_scenario_{spatial_granularity}.json"
+    )
     with open(file_path, "w") as file:
         json.dump(cluster_map, file)
 
@@ -181,10 +137,17 @@ if __name__ == "__main__":
     # Choose scenario_number to analyse
     focus_scenario = 0
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_granularity = "national"
+    spatial_resolution = "national"
     # Set to True if you want to manually force the clustering algorithm to find a number of clusters
     manually_set_n_clusters = True
-    n_clusters_manual = {"2030": 14, "2050": 14}
+
+    # Based on looking at Elbow figure & Silhouette score figure the best number of clusters is chosen:
+    # National: {"2030": 14, "2050": 14}
+    # Continental: {"2030": 13, "2050": 9}
+    if spatial_resolution == "continental":
+        n_clusters_manual = {"2030": 13, "2050": 9}
+    elif spatial_resolution == "national":
+        n_clusters_manual = {"2030": 14, "2050": 14}
 
     """
     1. READ AND PREPARE DATA
@@ -194,30 +157,8 @@ if __name__ == "__main__":
     years = ["2030", "2050"]
     # years = find_years(path_to_processed_data=path_to_processed_data)
     power_capacity, paper_metrics = get_processed_data(
-        path_to_processed_data=path_to_processed_data
+        path_to_processed_data=path_to_processed_data, resolution=spatial_resolution
     )
-
-    # Split power capacity into continental granularity and national granularity
-    power_capacity_continental = {}
-    power_capacity_national = {}
-    for year in years:
-        power_capacity_continental[year] = power_capacity.get(year).xs(
-            "Europe", level="region", drop_level=False
-        )
-        power_capacity_national[year] = power_capacity.get(year).drop(
-            index="Europe", level="region"
-        )
-
-    # Choose for which granularity to run the analysis
-    if spatial_granularity == "national":
-        _power_capacity = power_capacity_national
-    elif spatial_granularity == "continental":
-        _power_capacity = power_capacity_continental
-    else:
-        # Write a line of code that crashes the program and raises and error
-        raise ValueError(
-            "Invalid spatial granularity. Please choose 'national' or 'continental'."
-        )
 
     """
     2. CLUSTER SPORES TO SCENARIOS
@@ -229,19 +170,26 @@ if __name__ == "__main__":
         else:
             # Find optimal number of clusters based on Elbow and Silhouette score methods
             n_clusters = find_n_clusters(
-                data_series=_power_capacity.get(year), min_clusters=2, max_clusters=15
+                data_series=power_capacity.get(year),
+                min_clusters=2,
+                max_clusters=15,
+                plot=True,
             )
 
         # Cluster SPORES using K-Means clustering
-        _power_capacity[year] = cluster_spores(_power_capacity.get(year), n_clusters)
+        power_capacity[year] = cluster_spores(power_capacity.get(year), n_clusters)
 
         # Add cluster as an index to paper_metrics data
-        spore_to_cluster_map = get_spore_to_cluster_map(_power_capacity.get(year))
+        spore_to_cluster_map = get_spore_to_cluster_map(power_capacity.get(year))
         paper_metrics[year] = add_cluster_index_to_series(
             data=paper_metrics.get(year), cluster_mapper=spore_to_cluster_map
         )
 
         # Save spore_to_cluster_map to processed to processed data
         save_cluster_map(
-            spore_to_cluster_map, os.path.join(path_to_processed_data, year)
+            spore_to_cluster_map,
+            os.path.join(path_to_processed_data, year),
+            spatial_resolution,
         )
+
+    plt.show()

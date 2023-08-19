@@ -37,8 +37,8 @@ POWER_TECH_COLORS = {
     "Wind": "#674ea7",
     "Hydro": "#2986cc",
     "hydro": "#2986cc",
-    "Coal": "#000000", # Black = #000000, Grey = #808080
-    "coal": "#000000"
+    "Coal": "#000000",  # Black = #000000, Grey = #808080
+    "coal": "#000000",
 }
 metric_plot_order = {
     "curtailment": 2,
@@ -49,29 +49,31 @@ metric_plot_order = {
     "transport_electrification": 9,
     "heat_electrification": 8,
     "biofuel_utilisation": 3,
-    "ev_flexibility": 7
+    "ev_flexibility": 7,
 }
 metric_plot_names = {
-    "curtailment": 'Curtailment',
-    "electricity_production_gini":  'Electricity production\nGini coefficient',
-    "average_national_import": 'Average\nnational import',
-    "fuel_autarky_gini": 'Fuel autarky\nGini coefficient',
-    "storage_discharge_capacity": 'Storage discharge\ncapacity',
-    "transport_electrification": 'Transport\nelectrification',
-    "heat_electrification": 'Heat\nelectrification',
-    "biofuel_utilisation": 'Biofuel\nutilisation',
-    "ev_flexibility": 'EV as flexibility'
+    "curtailment": "Curtailment",
+    "electricity_production_gini": "Electricity production\nGini coefficient",
+    "average_national_import": "Average\nnational import",
+    "fuel_autarky_gini": "Fuel autarky\nGini coefficient",
+    "storage_discharge_capacity": "Storage discharge\ncapacity",
+    "transport_electrification": "Transport\nelectrification",
+    "heat_electrification": "Heat\nelectrification",
+    "biofuel_utilisation": "Biofuel\nutilisation",
+    "ev_flexibility": "EV as flexibility",
 }
 metric_range_formatting = {
     "curtailment": lambda x: x.round(0).astype(int),
     "electricity_production_gini": lambda x: x.round(2),
     "average_national_import": lambda x: x.round(0).astype(int),
     "fuel_autarky_gini": lambda x: x.round(2),
-    "storage_discharge_capacity": lambda x: x.round(0).astype(int) if x.name == "max" else x.round(2),
+    "storage_discharge_capacity": lambda x: x.round(0).astype(int)
+    if x.name == "max"
+    else x.round(2),
     "transport_electrification": lambda x: x.round(0).astype(int),
     "heat_electrification": lambda x: x.round(0).astype(int),
     "biofuel_utilisation": lambda x: x.round(0).astype(int),
-    "ev_flexibility": lambda x: x.round(2)
+    "ev_flexibility": lambda x: x.round(2),
 }
 FIGWIDTH = 6.77165
 
@@ -86,16 +88,70 @@ def get_color_dict2(label_list):
     return colors
 
 
-
 def get_color_dict(label_list):
     # Define colours
     colors = {
-        label_list[i]: (sns.color_palette("bright")[:-3] + sns.color_palette("bright")[-2:])[i]
+        label_list[i]: (
+            sns.color_palette("bright")[:-3] + sns.color_palette("bright")[-2:]
+        )[i]
         for i in range(len(label_list))
     }
     colors["rest_color"] = sns.color_palette("bright")[-3]
     return colors
 
 
-if __name__ == '__main__':
-    print("")
+def plot_scenarios_mean_capacities():
+    fig, ax = plt.subplots(1, 1, figsize=(FIGWIDTH, 10 * FIGWIDTH / 20))
+
+
+def plot_scenario_analysis():
+    fig, ax = plt.subplots(1, 1, figsize=(FIGWIDTH, 10 * FIGWIDTH / 20))
+
+
+def plot_metrics_distribution():
+    fig, ax = plt.subplots(1, 1, figsize=(FIGWIDTH, 10 * FIGWIDTH / 20))
+
+
+def plot_capacity_distribution():
+    fig, ax = plt.subplots(1, 1, figsize=(FIGWIDTH, 10 * FIGWIDTH / 20))
+
+
+def plot_elbow_figure(wcss, min_clusters, max_clusters, spatial_resolution, year):
+    # Using Elbow method
+    plt.figure()
+    plt.plot(range(min_clusters, max_clusters + 1), wcss, marker="o")
+    plt.xlabel("Number of Clusters")
+    plt.ylabel("WCSS")
+    plt.savefig(
+        f"../figures/appendices/finding_optimal_n_scenarios/elbow_method_{spatial_resolution}_{year}.png",
+        bbox_inches="tight",
+        dpi=120,
+    )
+    plt.title(f"Elbow Method for {year}")
+
+
+def plot_silhouette_score(
+    silhouette_scores, min_clusters, max_clusters, spatial_resolution, year
+):
+    plt.figure()
+    plt.plot(range(min_clusters, max_clusters + 1), silhouette_scores, marker="o")
+    plt.xlabel("Number of Clusters")
+    plt.ylabel("Silhouette Score")
+    plt.savefig(
+        f"../figures/appendices/finding_optimal_n_scenarios/silhouette_method_{spatial_resolution}_{year}.png",
+        bbox_inches="tight",
+        dpi=120,
+    )
+    plt.title(f"Silhouette Score Method for {year}")
+
+
+if __name__ == "__main__":
+    """
+    0. SET PARAMETERS
+    """
+    # Choose scenario_number to analyse
+    focus_scenario = 0
+
+    """
+    1. READ AND PREPARE DATA
+    """

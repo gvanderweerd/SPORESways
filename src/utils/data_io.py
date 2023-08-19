@@ -390,3 +390,97 @@ def get_power_capacity(spores_data, result_path, save_to_csv=False):
         power_capacity.to_csv(os.path.join(result_path, "power_capacity.csv"))
     else:
         return power_capacity
+
+
+def add_cluster_index_to_series(data, cluster_mapper):
+    # Get name of the data
+    data_name = data.name
+
+    # Add cluster using cluster mapper
+    data = data.reset_index()
+    data["cluster"] = data["spore"].map(cluster_mapper)
+
+    # Get index names
+    index_names = list(data.columns)
+    index_names.remove(data_name)
+
+    # Return clustered data as a multi index series
+    return data.set_index(index_names)[data_name]
+
+
+# def get_processed_data(path_to_processed_data):
+#     years = find_years(path_to_processed_data)
+#
+#     power_capacity = {}
+#     paper_metrics = {}
+#
+#     for year in years:
+#         power_capacity[year] = pd.read_csv(
+#             os.path.join(path_to_processed_data, year, "power_capacity.csv"),
+#             index_col=["region", "technology", "spore"],
+#             # squeeze=True,
+#         ).squeeze()
+#         # power_capacity[year].name = os.path.basename(file_path)
+#
+#         paper_metrics[year] = pd.read_csv(
+#             os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
+#             index_col=["spore", "metric", "unit"],
+#             # squeeze=True,
+#         ).squeeze()
+#
+#     return power_capacity, paper_metrics
+
+
+def get_spore_to_scenario_maps(path_to_processed_data, resolution="continental"):
+    years = find_years(path_to_processed_data)
+    spore_to_scenario_maps = {}
+
+    for year in years:
+        # Load SPORE to scenario map
+        with open(
+            os.path.join(
+                "../data/processed",
+                year,
+                f"spore_to_scenario_{resolution}.json",
+            ),
+            "r",
+        ) as json_file:
+            spore_to_scenario_maps[year] = json.load(json_file)
+            spore_to_scenario_maps[year] = {
+                int(spore): cluster
+                for spore, cluster in spore_to_scenario_maps[year].items()
+            }
+    return spore_to_scenario_maps
+
+
+def get_processed_data(path_to_processed_data, resolution="continental"):
+    years = find_years(path_to_processed_data)
+
+    power_capacity = {}
+    paper_metrics = {}
+
+    for year in years:
+        # Get power capacity
+        power_capacity[year] = pd.read_csv(
+            os.path.join(path_to_processed_data, year, "power_capacity.csv"),
+            index_col=["region", "technology", "spore"],
+        ).squeeze()
+        # power_capacity[year].name = os.path.basename(file_path)
+
+        # Filter power capacity on the right spatial resolution
+        if resolution == "continental":
+            power_capacity[year] = power_capacity.get(year).xs(
+                "Europe", level="region", drop_level=False
+            )
+        elif resolution == "national":
+            power_capacity[year] = power_capacity.get(year).drop(
+                index="Europe", level="region"
+            )
+
+        # Paper metrics
+        paper_metrics[year] = pd.read_csv(
+            os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
+            index_col=["spore", "metric", "unit"],
+        ).squeeze()
+
+    return power_capacity, paper_metrics
