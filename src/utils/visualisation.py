@@ -12,6 +12,7 @@ from scipy.spatial import distance_matrix
 from scipy.cluster.hierarchy import dendrogram
 
 from src.utils.parameters import *
+from src.utils.data_io import *
 
 # Define open circles for plotting 'All other SPORES'
 pts = np.linspace(0, np.pi * 2, 24)
@@ -78,6 +79,11 @@ metric_range_formatting = {
 FIGWIDTH = 6.77165
 
 
+def normalise_to_max(x):
+    max_value = x.max()
+    return x / max_value
+
+
 def get_color_dict2(label_list):
     color_palette = sns.color_palette("bright")
     colors = {
@@ -100,20 +106,216 @@ def get_color_dict(label_list):
     return colors
 
 
-def plot_scenarios_mean_capacities():
+def plot_scenarios_mean_capacities(power_capacity_clustered, year):
+    # FIXME: this function is only intended for continental resolution. Is this the right figure if we want to visualise clusters that where clustered on national resolution?
     fig, ax = plt.subplots(1, 1, figsize=(FIGWIDTH, 10 * FIGWIDTH / 20))
+
+    # Prepare data
+    scenarios_avg = (
+        power_capacity_clustered.groupby(["cluster", "technology"])
+        .agg("mean")
+        .reset_index()
+        .pivot_table(index="cluster", columns="technology", values="capacity_gw")
+    )
+    n_spores_per_cluster = count_spores_per_cluster(power_capacity_clustered)
+    print()
+
+    # Plot figure
+    scenarios_avg.plot(ax=ax, kind="bar", stacked=True, color=POWER_TECH_COLORS)
+    # FIXME: rotate x-labels 90 degrees
+    ax.set_xlabel("Scenario")
+    ax.set_ylabel("Installed capacity [GW]")
+    ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
+    plt.title(f"{year}")
+    plt.tight_layout(pad=1)
+
+    # Annotate number of SPORE in each cluster on top of each bar
+    for cluster_number, spores_count in enumerate(n_spores_per_cluster):
+        ax.text(
+            cluster_number,
+            scenarios_avg.sum(axis=1)[cluster_number] + 200,
+            str(spores_count),
+            va="center",
+            ha="center",
+        )
 
 
 def plot_scenario_analysis():
     fig, ax = plt.subplots(1, 1, figsize=(FIGWIDTH, 10 * FIGWIDTH / 20))
 
 
-def plot_metrics_distribution():
+def plot_metrics_distribution(metrics, year, focus_cluster=None):
+    print(metrics)
+    # Calculate metric ranges and get units
+    metric_ranges = metrics.groupby(level="metric").agg(["min", "max"])
+    metric_units = (
+        metrics.index.to_frame(index=False)
+        .drop_duplicates(subset="metric")
+        .set_index("metric")["unit"]
+        .to_dict()
+    )
+
+    # Normalise metrics
+    metrics_normalised = (
+        metrics.groupby(["metric"]).transform(normalise_to_max).reset_index()
+    )
+
+    # Calculate min, max for focus cluster (for plotting boxes)
+    max_scenario = (
+        metrics_normalised.loc[
+            (metrics_normalised.cluster == focus_cluster), ["paper_metrics", "metric"]
+        ]
+        .groupby("metric")
+        .max()["paper_metrics"]
+    )
+    min_scenario = (
+        metrics_normalised.loc[
+            (metrics_normalised.cluster == focus_cluster), ["paper_metrics", "metric"]
+        ]
+        .groupby("metric")
+        .min()["paper_metrics"]
+    )
+
+    # Get colors dictionary for metric
+    metric_labels = list(metrics.index.unique(level="metric"))
+    cluster_labels = list(metrics.index.unique(level="cluster"))
+    metric_colors = get_color_dict2(metric_labels)
+    cluster_colors = get_color_dict2(cluster_labels)
+
+    # Get SPORES to plot in color (SPORES that belong to a specific cluster)
+    # spores_to_plot_in_color = metrics.xs(focus_cluster, level="cluster").index.unique(level="spore")
+    spores_to_plot_in_color = metrics_normalised[
+        (metrics_normalised.cluster == focus_cluster)
+    ].spore.values
+
+    #
     fig, ax = plt.subplots(1, 1, figsize=(FIGWIDTH, 10 * FIGWIDTH / 20))
+    sns.stripplot(
+        ax=ax,
+        data=metrics_normalised[
+            ~metrics_normalised.spore.isin(spores_to_plot_in_color)
+        ],
+        x="metric",
+        y="paper_metrics",
+        marker=open_circle,
+        color=cluster_colors["rest_color"],
+        alpha=0.5,
+        s=3,
+    )
+
+    # Format y-axis
+    ax.set_ylabel("Metric score (scaled per metric to maximum across all SPORES)")
+
+    # Format x-axis
+    ax.set_xticks(range(len(metric_labels)))
+    ax.set_xticklabels(metric_labels, fontsize=10)
+    xticklabels = []
+    _x = 0
+    for ticklabel in ax.get_xticklabels():
+        _metric = ticklabel.get_text()
+
+        # Plot boxes
+        xmin = _x - 0.2
+        xmax = _x + 0.2
+        height = max_scenario.loc[_metric] - min_scenario.loc[_metric]
+        height += 0.018
+        ax.add_patch(
+            mpl.patches.Rectangle(
+                xy=(xmin, min_scenario.loc[_metric] - 0.009),
+                height=height,
+                width=(xmax - xmin),
+                fc="None",
+                ec=cluster_colors[focus_cluster],
+                linestyle="--",
+                lw=0.75,
+                zorder=10,
+            ),
+        )
+        _x += 1
+
+        # Format x-axis labels
+        metric_range = metric_ranges.apply(metric_range_formatting[_metric]).loc[
+            _metric
+        ]
+        _unit = metric_units.get(_metric)
+        if _unit == "percentage":
+            _unit = " %"
+        elif _unit == "fraction":
+            _unit = ""
+        else:
+            _unit = " " + _unit
+        xticklabels.append(
+            f"{metric_plot_names[_metric]}\n({metric_range['min']} - {metric_range['max']}){_unit}"
+        )
+    ax.set_xticklabels(xticklabels, fontsize=6)
+
+    # Color focus scenario
+    if focus_cluster is not None:
+        sns.stripplot(
+            data=metrics_normalised[
+                metrics_normalised.spore.isin(spores_to_plot_in_color)
+            ],
+            x="metric",
+            y="paper_metrics",
+            alpha=0.5,
+            ax=ax,
+            marker="o",
+            color=cluster_colors[focus_cluster],
+            s=3,
+        )
+
+    # FIXME: get unique spores only
+    # print(spores_to_plot_in_color)
+
+    # Set figure title
+    n_spores_per_cluster = count_spores_per_cluster(metrics)
+    ax.set_title(
+        f"Scenario {focus_cluster} ({year}): {n_spores_per_cluster[focus_cluster]} SPORES"
+    )
+
+    # ax.set_xticklabels(xticklabels, fontsize=6)
+    # handles = {}
+    # handles["other"] = mpl.lines.Line2D(
+    #     [0], [0],
+    #     marker=open_circle,
+    #     color="w",
+    #     markerfacecolor=colours["All other SPORES"],
+    #     markeredgecolor=colours["All other SPORES"],
+    #     label='All other SPORES',
+    #     markersize=4
+    # )
+    # if incl_15pp_boxes:
+    #     handles["best"] = mpl.patches.Rectangle(
+    #         xy=(xmin, min_best.loc[idx] - 0.005),
+    #         height=height,
+    #         width=(xmax - xmin),
+    #         fc="None",
+    #         ec="black",
+    #         linestyle="--",
+    #         lw=0.75,
+    #         label='SPORE +15pp range',
+    #
+    #     )  #
+    # if focus_metric is not None:
+    #     handles["linked_spores"] = mpl.lines.Line2D(
+    #         [0], [0],
+    #         marker='o',
+    #         color="w",
+    #         markerfacecolor=colours[focus_metric],
+    #         label=f"SPORES linked to {plot_names[focus_metric].lower()} +15pp range",
+    #         markersize=5
+    #     )
+    #
+    # ax.legend(handles=handles.values(), frameon=False, loc="lower right", bbox_to_anchor=(0.8, 0))
+    # sns.despine(ax=ax)
 
 
-def plot_capacity_distribution():
-    fig, ax = plt.subplots(1, 1, figsize=(FIGWIDTH, 10 * FIGWIDTH / 20))
+def plot_capacity_distribution(capacity, year, focus_cluster=None):
+    pass
+
+
+def plot_capacity_pathway(power_capacity):
+    pass
 
 
 def plot_elbow_figure(wcss, min_clusters, max_clusters, spatial_resolution, year):

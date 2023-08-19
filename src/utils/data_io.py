@@ -1,5 +1,6 @@
 import string
 import yaml
+import json
 import os
 import shutil
 import numpy as np
@@ -484,3 +485,7 @@ def get_processed_data(path_to_processed_data, resolution="continental"):
         ).squeeze()
 
     return power_capacity, paper_metrics
+
+
+def count_spores_per_cluster(clustered_data):
+    return clustered_data.reset_index().groupby("cluster")["spore"].nunique()
