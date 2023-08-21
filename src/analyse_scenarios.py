@@ -39,20 +39,28 @@ if __name__ == "__main__":
     # Choose scenario_number to analyse
     focus_scenario = 1
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "continental"
+    spatial_resolution = "Europe"
 
     """
     1. READ AND PREPARE DATA
     """
     # Read data
     path_to_processed_data = os.path.join(os.getcwd(), "..", "data", "processed")
-    years = find_years(path_to_processed_data=path_to_processed_data)
+    years = ["2030", "2050"]
     power_capacity, paper_metrics = get_processed_data(
-        path_to_processed_data=path_to_processed_data
+        path_to_processed_data=path_to_processed_data, years=years
     )
     spore_to_scenario_maps = get_spore_to_scenario_maps(
-        path_to_processed_data=path_to_processed_data, resolution=spatial_resolution
+        path_to_processed_data=path_to_processed_data,
+        years=years,
+        resolution=spatial_resolution,
     )
+
+    # Filter data based on spatial resolution
+    for year in years:
+        power_capacity[year] = filter_power_capacity(
+            power_capacity[year], spatial_resolution
+        )
 
     # Add cluster index to data
     for year in years:
@@ -73,6 +81,7 @@ if __name__ == "__main__":
 
     for year in years:
         # Plot mean installed capacity for each scenario
+        print(power_capacity.get(year))
         plot_scenarios_mean_capacities(
             power_capacity_clustered=power_capacity.get(year), year=year
         )

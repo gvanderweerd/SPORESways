@@ -133,7 +133,7 @@ def plot_scenarios_mean_capacities(power_capacity_clustered, year):
     for cluster_number, spores_count in enumerate(n_spores_per_cluster):
         ax.text(
             cluster_number,
-            scenarios_avg.sum(axis=1)[cluster_number] + 200,
+            scenarios_avg.sum(axis=1)[cluster_number] * 1.05,
             str(spores_count),
             va="center",
             ha="center",

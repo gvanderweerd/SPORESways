@@ -137,17 +137,17 @@ if __name__ == "__main__":
     # Choose scenario_number to analyse
     focus_scenario = 0
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "national"
+    spatial_resolution = "Netherlands"
     # Set to True if you want to manually force the clustering algorithm to find a number of clusters
     manually_set_n_clusters = True
 
     # Based on looking at Elbow figure & Silhouette score figure the best number of clusters is chosen:
     # National: {"2030": 14, "2050": 14}
-    # Continental: {"2030": 13, "2050": 9}
-    if spatial_resolution == "continental":
-        n_clusters_manual = {"2030": 13, "2050": 9}
-    elif spatial_resolution == "national":
-        n_clusters_manual = {"2030": 14, "2050": 14}
+    # Europe: {"2030": 10, "2050": 6} #FIXME: or "2050": 9?
+    # Italy: {"2030": 6, "2050": 8}
+    # Netherlands: {"2030": 6, "2050": 5}
+    if manually_set_n_clusters:
+        n_clusters_manual = {"2030": 6, "2050": 5}
 
     """
     1. READ AND PREPARE DATA
@@ -157,23 +157,38 @@ if __name__ == "__main__":
     years = ["2030", "2050"]
     # years = find_years(path_to_processed_data=path_to_processed_data)
     power_capacity, paper_metrics = get_processed_data(
-        path_to_processed_data=path_to_processed_data, resolution=spatial_resolution
+        path_to_processed_data=path_to_processed_data, years=years
     )
+
+    # Filter data based on spatial resolution
+    for year in years:
+        power_capacity[year] = filter_power_capacity(
+            power_capacity[year], spatial_resolution
+        )
 
     """
     2. CLUSTER SPORES TO SCENARIOS
     """
     for year in years:
+        print(
+            f"\n For clustering {year} SPORES results based on installed capacity of power generation technologies in {spatial_resolution} we find: \n"
+        )
+        # Find optimal number of clusters based on Elbow and Silhouette score methods
+        find_n_clusters(
+            data_series=power_capacity.get(year),
+            min_clusters=2,
+            max_clusters=15,
+            plot=True,
+        )
+        plt.show()
+
         if manually_set_n_clusters:
             # Set number of clusters to a manually chosen integer value
             n_clusters = n_clusters_manual.get(year)
         else:
-            # Find optimal number of clusters based on Elbow and Silhouette score methods
-            n_clusters = find_n_clusters(
-                data_series=power_capacity.get(year),
-                min_clusters=2,
-                max_clusters=15,
-                plot=True,
+            # Prompt user to input the number of clusters based on the graph
+            n_clusters = int(
+                input(f"\n Enter the optimal number of clusters for the year {year}:  ")
             )
 
         # Cluster SPORES using K-Means clustering
@@ -191,5 +206,3 @@ if __name__ == "__main__":
             os.path.join(path_to_processed_data, year),
             spatial_resolution,
         )
-
-    plt.show()

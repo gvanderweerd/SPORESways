@@ -295,6 +295,14 @@ def _region_to_country(region):
     return region.split("_")[0]
 
 
+def filter_power_capacity(df, spatial_resolution):
+    if spatial_resolution == "national":
+        df = df.drop(index="Europe", level="region")
+    else:
+        df = df.xs(spatial_resolution, level="region", drop_level=False)
+    return df
+
+
 def get_power_capacity2(spores_data, result_path, save_to_csv=False):
     """
 
@@ -409,31 +417,7 @@ def add_cluster_index_to_series(data, cluster_mapper):
     return data.set_index(index_names)[data_name]
 
 
-# def get_processed_data(path_to_processed_data):
-#     years = find_years(path_to_processed_data)
-#
-#     power_capacity = {}
-#     paper_metrics = {}
-#
-#     for year in years:
-#         power_capacity[year] = pd.read_csv(
-#             os.path.join(path_to_processed_data, year, "power_capacity.csv"),
-#             index_col=["region", "technology", "spore"],
-#             # squeeze=True,
-#         ).squeeze()
-#         # power_capacity[year].name = os.path.basename(file_path)
-#
-#         paper_metrics[year] = pd.read_csv(
-#             os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
-#             index_col=["spore", "metric", "unit"],
-#             # squeeze=True,
-#         ).squeeze()
-#
-#     return power_capacity, paper_metrics
-
-
-def get_spore_to_scenario_maps(path_to_processed_data, resolution="continental"):
-    years = find_years(path_to_processed_data)
+def get_spore_to_scenario_maps(path_to_processed_data, years, resolution="Europe"):
     spore_to_scenario_maps = {}
 
     for year in years:
@@ -454,37 +438,63 @@ def get_spore_to_scenario_maps(path_to_processed_data, resolution="continental")
     return spore_to_scenario_maps
 
 
-def get_processed_data(path_to_processed_data, resolution="continental"):
-    years = find_years(path_to_processed_data)
-
-    power_capacity = {}
-    paper_metrics = {}
+def get_processed_data(path_to_processed_data, years):
+    power = {}
+    metrics = {}
 
     for year in years:
         # Get power capacity
-        power_capacity[year] = pd.read_csv(
+        power[year] = pd.read_csv(
             os.path.join(path_to_processed_data, year, "power_capacity.csv"),
             index_col=["region", "technology", "spore"],
         ).squeeze()
         # power_capacity[year].name = os.path.basename(file_path)
 
-        # Filter power capacity on the right spatial resolution
-        if resolution == "continental":
-            power_capacity[year] = power_capacity.get(year).xs(
-                "Europe", level="region", drop_level=False
-            )
-        elif resolution == "national":
-            power_capacity[year] = power_capacity.get(year).drop(
-                index="Europe", level="region"
-            )
-
         # Paper metrics
-        paper_metrics[year] = pd.read_csv(
+        metrics[year] = pd.read_csv(
             os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
             index_col=["spore", "metric", "unit"],
         ).squeeze()
 
-    return power_capacity, paper_metrics
+    return power, metrics
+
+
+# def get_processed_data(path_to_processed_data,"):
+#     years = find_years(path_to_processed_data)
+#
+#     power_capacity = {}
+#     paper_metrics = {}
+#
+#     for year in years:
+#         # Get power capacity
+#         power_capacity[year] = pd.read_csv(
+#             os.path.join(path_to_processed_data, year, "power_capacity.csv"),
+#             index_col=["region", "technology", "spore"],
+#         ).squeeze()
+#         # power_capacity[year].name = os.path.basename(file_path)
+#
+#         # Filter power capacity on the right spatial resolution
+#         # if resolution == "continental":
+#         #     power_capacity[year] = power_capacity.get(year).xs(
+#         #         "Europe", level="region", drop_level=False
+#         #     )
+#         if resolution == "national":
+#             power_capacity[year] = power_capacity.get(year).drop(
+#                 index="Europe", level="region"
+#             )
+#         else:
+#             power_capacity[year] = power_capacity.get(year).xs(
+#                 resolution, level="region", drop_level=False
+#             )
+#
+#         # Paper metrics
+#         paper_metrics[year] = pd.read_csv(
+#             os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
+#             index_col=["spore", "metric", "unit"],
+#         ).squeeze()
+#
+#     return power_capacity, paper_metrics
+#
 
 
 def count_spores_per_cluster(clustered_data):

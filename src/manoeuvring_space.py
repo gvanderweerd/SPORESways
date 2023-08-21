@@ -15,17 +15,16 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
-pd.set_option('display.width', 200)
+pd.set_option("display.max_rows", 500)
+pd.set_option("display.max_columns", 500)
+pd.set_option("display.width", 200)
 # np.set_printoptions(linewidth=150)
 # np.set_printoptions(threshold=np.inf, edgeitems=10)
 
-plt.rcParams.update({
-    "svg.fonttype": 'none',
-    'font.family':'sans-serif',
-    'font.sans-serif':'Arial'
-})
+plt.rcParams.update(
+    {"svg.fonttype": "none", "font.family": "sans-serif", "font.sans-serif": "Arial"}
+)
+
 
 def plot_3D_fig(df):
     fig = plt.figure()
@@ -40,7 +39,9 @@ def plot_3D_fig(df):
 
     for cluster, color in zip(clusters.unique(), color_map.colors):
         idx = clusters == cluster
-        ax.scatter(x[idx], y[idx], z[idx], c=[color], marker="o", label=f"Cluster {cluster}")
+        ax.scatter(
+            x[idx], y[idx], z[idx], c=[color], marker="o", label=f"Cluster {cluster}"
+        )
 
     ax.set_xlabel("CHP capacity [GW]")
     ax.set_ylabel("PV capacity [GW]")
@@ -54,7 +55,7 @@ def plot_elbow_fig(num_clusters_range, average_distances):
     sns.lineplot(x=num_clusters_range, y=average_distances, marker="o")
     plt.xlabel("Number of Clusters")
     plt.ylabel("Average Distance")
-    plt.title("Elbow Method to Determine Optimal Number of Clusters")
+    # plt.title("Elbow Method to Determine Optimal Number of Clusters")
 
 
 def add_cluster_index_to_series(data, cluster_mapper):
@@ -75,23 +76,29 @@ def add_cluster_index_to_series(data, cluster_mapper):
 
 def cluster_spores_data(spores_data, num_clusters):
     # FIXME: make this compatible with national spores data (I think columns = ["technology", "region"]
+    print("TeSt")
+    print(spores_data)
+    print(spores_data.reset_index())
     data_df = (
         spores_data.reset_index()
         .pivot(index=["spore"], columns="technology", values="capacity_gw")
         .reset_index()
         .drop(["spore"], axis=1)
     )
-    kmeans = KMeans(n_clusters=num_clusters)
+    kmeans = KMeans(n_clusters=num_clusters, n_init=10, random_state=42)
     data_df["cluster"] = kmeans.fit_predict(data_df)
 
     # Reformat data_df
     data_df.index.name = "spore"
-    data_df = (
-        data_df.reset_index().set_index(["spore", "cluster"]).stack("technology")
-    )
+    data_df = data_df.reset_index().set_index(["spore", "cluster"]).stack("technology")
 
     # Get dictionary to map the spore number to a corresponding cluster number
-    cluster_mapper = data_df.index.to_frame(index=False).drop_duplicates(subset="spore").set_index("spore")["cluster"].to_dict()
+    cluster_mapper = (
+        data_df.index.to_frame(index=False)
+        .drop_duplicates(subset="spore")
+        .set_index("spore")["cluster"]
+        .to_dict()
+    )
 
     # Calculate cluster centroids
     centroids = kmeans.cluster_centers_
@@ -100,23 +107,32 @@ def cluster_spores_data(spores_data, num_clusters):
 
 
 def find_optimal_clusters(spores_data):
-
     num_clusters_list = list(range(2, 20))
     average_distances = []
     for num_clusters in num_clusters_list:
         print(f"Number of clusters: {num_clusters}")
 
         # Cluster SPORES data for a given number of clusters
-        spores_data_clustered, cluster_mapper, centroids = cluster_spores_data(spores_data, num_clusters)
+        spores_data_clustered, cluster_mapper, centroids = cluster_spores_data(
+            spores_data, num_clusters
+        )
 
         # Calculate Euclidean distances of each SPORE to all centroids (distances has n rows for each spore 1:n and m columns for each cluster 1:m)
         # distances = pairwise_distances(spores_data_clustered.drop("cluster", axis=1), centroids, metric="euclidean")
-        distance_to_all_clusters = pairwise_distances(spores_data.unstack(level="technology").values, centroids, metric="euclidean")
+        distance_to_all_clusters = pairwise_distances(
+            spores_data.unstack(level="technology").values,
+            centroids,
+            metric="euclidean",
+        )
         # Calculate the square of the distance to the closest cluster
-        distance_to_cluster_squared = distance_to_all_clusters.min(axis=1)**2
+        distance_to_cluster_squared = distance_to_all_clusters.min(axis=1) ** 2
         # Put distance to the cluster centroid for each spore in a series with corresponding cluster as index
-        spore_cluster_index = pd.MultiIndex.from_tuples(cluster_mapper.items(), names=["spore", "cluster"])
-        distance_series = pd.Series(distance_to_cluster_squared, index=spore_cluster_index)
+        spore_cluster_index = pd.MultiIndex.from_tuples(
+            cluster_mapper.items(), names=["spore", "cluster"]
+        )
+        distance_series = pd.Series(
+            distance_to_cluster_squared, index=spore_cluster_index
+        )
         # Calculate the average distance for this number of clusters (total average distance is calculated by taking the mean of the mean distance for each cluster)
         average_distance = distance_series.groupby("cluster").mean().mean()
 
@@ -127,28 +143,89 @@ def find_optimal_clusters(spores_data):
     plot_elbow_fig(num_clusters_list, average_distances)
 
 
-def plot_scenarios_as_stacked_barcharts(clustered_spores_data, value, year):
-    scenarios = clustered_spores_data.groupby(["cluster", "technology"]).agg(["min", "max", "mean", "median"]).reset_index()
-    scenarios_avg = scenarios.pivot_table(index="cluster", columns="technology", values="mean")
-    scenarios_median = scenarios.pivot_table(index="cluster", columns="technology", values="median")
-    scenarios_min = scenarios.pivot_table(index="cluster", columns="technology", values="min")
-    scenarios_max = scenarios.pivot_table(index="cluster", columns="technology", values="max")
+def cluster_spores_data2(spores_data, num_clusters):
+    # FIXME: make this compatible with national spores data (I think columns = ["technology", "region"]
+    data_df = (
+        spores_data.reset_index()
+        .pivot(index=["spore"], columns="technology", values="capacity_gw")
+        .reset_index()
+        .drop(["spore"], axis=1)
+    )
+    kmeans = KMeans(
+        n_clusters=num_clusters, n_init=10, random_state=42
+    )  # random_state=: Determines random number generation for centroid initialization. Use an int to make the randomness deterministic.
+    data_df["cluster"] = kmeans.fit_predict(data_df)
 
-    design_space = clustered_spores_data.groupby(["technology"]).agg(["min", "max", "mean"]).T
+    # Reformat data_df
+    data_df.index.name = "spore"
+    data_df = data_df.reset_index().set_index(["spore", "cluster"]).stack("technology")
+
+    # Get dictionary to map the spore number to a corresponding cluster number
+    cluster_mapper = (
+        data_df.index.to_frame(index=False)
+        .drop_duplicates(subset="spore")
+        .set_index("spore")["cluster"]
+        .to_dict()
+    )
+
+    return data_df, cluster_mapper, kmeans
+
+
+def find_optimal_clusters2(spores_data):
+    num_clusters_list = list(range(2, 20))
+    wcss = []
+    silhouette_coefficients = []
+    for num_clusters in num_clusters_list:
+        print(f"Number of clusters: {num_clusters}")
+
+        # Cluster SPORES data for a given number of clusters
+        spores_data_clustered, cluster_mapper, kmeans = cluster_spores_data2(
+            spores_data, num_clusters
+        )
+        # Calculate Within-Cluster Sum of Squared distances
+        wcss.append(kmeans.inertia_)
+        # Calculate Sihouette Coefficient
+        silhouette_coefficients.append(
+            silhouette_score(spores_data_clustered, kmeans.labels_)
+        )
+    # Plot Elbow curve to determine the number of clusters
+    plot_elbow_fig(num_clusters_list, wcss)
+    plot_elbow_fig(num_clusters_list, silhouette_coefficients)
+
+
+def plot_scenarios_as_stacked_barcharts(clustered_spores_data, value, year):
+    scenarios = (
+        clustered_spores_data.groupby(["cluster", "technology"])
+        .agg(["min", "max", "mean", "median"])
+        .reset_index()
+    )
+    scenarios_avg = scenarios.pivot_table(
+        index="cluster", columns="technology", values="mean"
+    )
+    scenarios_median = scenarios.pivot_table(
+        index="cluster", columns="technology", values="median"
+    )
+    scenarios_min = scenarios.pivot_table(
+        index="cluster", columns="technology", values="min"
+    )
+    scenarios_max = scenarios.pivot_table(
+        index="cluster", columns="technology", values="max"
+    )
+
+    design_space = (
+        clustered_spores_data.groupby(["technology"]).agg(["min", "max", "mean"]).T
+    )
 
     # plt.figure(figsize=(8, 4.5))
     scenarios_avg.plot(kind="bar", stacked=True, color=POWER_TECH_COLORS)
 
     plt.xlabel("Scenario")
     plt.ylabel("Installed capacity [GW]")
-    plt.title(f"Stacked barchart of installed power capacity for each scenario in {year}")
+    plt.title(
+        f"Stacked barchart of installed power capacity for each scenario in {year}"
+    )
     plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     plt.tight_layout(pad=0)
-
-
-def normalise_to_max(x):
-    max_value = x.max()
-    return x / max_value
 
 
 def plot_scenarios_capacity_distribution(clustered_spores_data, year, region):
@@ -174,10 +251,7 @@ def plot_scenarios_capacity_distribution(clustered_spores_data, year, region):
 
     fig, ax = plt.subplots()
     sns.stripplot(
-        ax=ax,
-        data=capacity_normalised2,
-        marker=open_circle,
-        palette=POWER_TECH_COLORS
+        ax=ax, data=capacity_normalised2, marker=open_circle, palette=POWER_TECH_COLORS
     )
 
     capacity_normalised.index.name = "spore"
@@ -203,25 +277,39 @@ def plot_scenarios_capacity_distribution(clustered_spores_data, year, region):
 
 
 def reorganise_metrics(df):
-    return df.iloc[df['metric'].map(metric_plot_order).argsort()]
+    return df.iloc[df["metric"].map(metric_plot_order).argsort()]
 
 
 def plot_metrics_distribution(metrics, year, focus_cluster=None):
     # Calculate metric ranges and get units
     metric_ranges = metrics.groupby(level="metric").agg(["min", "max"])
-    metric_units = metrics.index.to_frame(index=False).drop_duplicates(subset="metric").set_index("metric")["unit"].to_dict()
+    metric_units = (
+        metrics.index.to_frame(index=False)
+        .drop_duplicates(subset="metric")
+        .set_index("metric")["unit"]
+        .to_dict()
+    )
 
     # Normalise metrics
-    metrics_normalised = metrics.groupby(["metric"]).transform(normalise_to_max).reset_index()
+    metrics_normalised = (
+        metrics.groupby(["metric"]).transform(normalise_to_max).reset_index()
+    )
 
     # Calculate min, max for focus cluster (for plotting boxes)
-    max_scenario = metrics_normalised.loc[
-        (metrics_normalised.cluster == focus_cluster), ["paper_metrics", "metric"]
-    ].groupby("metric").max()["paper_metrics"]
-    min_scenario = metrics_normalised.loc[
-        (metrics_normalised.cluster == focus_cluster), ["paper_metrics", "metric"]
-    ].groupby("metric").min()["paper_metrics"]
-
+    max_scenario = (
+        metrics_normalised.loc[
+            (metrics_normalised.cluster == focus_cluster), ["paper_metrics", "metric"]
+        ]
+        .groupby("metric")
+        .max()["paper_metrics"]
+    )
+    min_scenario = (
+        metrics_normalised.loc[
+            (metrics_normalised.cluster == focus_cluster), ["paper_metrics", "metric"]
+        ]
+        .groupby("metric")
+        .min()["paper_metrics"]
+    )
 
     # Get colors dictionary for metric
     metric_labels = list(metrics.index.unique(level="metric"))
@@ -233,19 +321,21 @@ def plot_metrics_distribution(metrics, year, focus_cluster=None):
     # spores_to_plot_in_color = metrics.xs(focus_cluster, level="cluster").index.unique(level="spore")
     spores_to_plot_in_color = metrics_normalised[
         (metrics_normalised.cluster == focus_cluster)
-        ].spore.values
+    ].spore.values
 
     #
     fig, ax = plt.subplots(1, 1, figsize=(FIGWIDTH, 10 * FIGWIDTH / 20))
     sns.stripplot(
         ax=ax,
-        data=metrics_normalised[~metrics_normalised.spore.isin(spores_to_plot_in_color)],
+        data=metrics_normalised[
+            ~metrics_normalised.spore.isin(spores_to_plot_in_color)
+        ],
         x="metric",
         y="paper_metrics",
         marker=open_circle,
         color=cluster_colors["rest_color"],
-        alpha=.5,
-        s=3
+        alpha=0.5,
+        s=3,
     )
 
     # Format y-axis
@@ -273,14 +363,15 @@ def plot_metrics_distribution(metrics, year, focus_cluster=None):
                 ec=cluster_colors[focus_cluster],
                 linestyle="--",
                 lw=0.75,
-
-                zorder=10
+                zorder=10,
             ),
         )
         _x += 1
 
         # Format x-axis labels
-        metric_range = metric_ranges.apply(metric_range_formatting[_metric]).loc[_metric]
+        metric_range = metric_ranges.apply(metric_range_formatting[_metric]).loc[
+            _metric
+        ]
         _unit = metric_units.get(_metric)
         if _unit == "percentage":
             _unit = " %"
@@ -296,22 +387,27 @@ def plot_metrics_distribution(metrics, year, focus_cluster=None):
     # Color focus scenario
     if focus_cluster is not None:
         sns.stripplot(
-            data=metrics_normalised[metrics_normalised.spore.isin(spores_to_plot_in_color)],
-            x="metric", y="paper_metrics", alpha=.5, ax=ax, marker="o", color=cluster_colors[focus_cluster], s=3
+            data=metrics_normalised[
+                metrics_normalised.spore.isin(spores_to_plot_in_color)
+            ],
+            x="metric",
+            y="paper_metrics",
+            alpha=0.5,
+            ax=ax,
+            marker="o",
+            color=cluster_colors[focus_cluster],
+            s=3,
         )
 
-    #FIXME: get unique spores only
+    # FIXME: get unique spores only
     # print(spores_to_plot_in_color)
 
     # Set figure title
-    ax.set_title(f"Scenario {focus_cluster}: {spores_per_cluster[focus_cluster]} SPORES")
-
-
+    ax.set_title(
+        f"Scenario {focus_cluster}: {spores_per_cluster[focus_cluster]} SPORES"
+    )
 
     # Plot boxes around scenario range
-
-
-
 
     # for ticklabel in ax.get_xticklabels():
     #     _metric = ticklabel.get_text()
@@ -338,8 +434,6 @@ def plot_metrics_distribution(metrics, year, focus_cluster=None):
     #         ),
     #     )
     #     _x += 1
-
-
 
     # if focus_metric is not None:
     #     sns.stripplot(
@@ -395,25 +489,29 @@ def get_processed_data(path_to_processed_data):
         power_capacity[year] = pd.read_csv(
             os.path.join(path_to_processed_data, year, "power_capacity.csv"),
             index_col=["region", "technology", "spore"],
-            squeeze=True,
-        )
+            # squeeze=True,
+        ).squeeze()
+        # power_capacity[year].name = os.path.basename(file_path)
+
         paper_metrics[year] = pd.read_csv(
             os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
             index_col=["spore", "metric", "unit"],
-            squeeze=True,
-        )
+            # squeeze=True,
+        ).squeeze()
+
     return power_capacity, paper_metrics
 
 
 def main():
-    for root, dirs, files in os.walk(os.path.join(os.getcwd(), "..", "data", "processed")):
+    for root, dirs, files in os.walk(
+        os.path.join(os.getcwd(), "..", "data", "processed")
+    ):
         print(root, dirs, files)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # MRQ:
     # "How do investment decisions affect the manoeuvring space of a climate neutral European energy system design in 2050?"
-
 
     """
     0. SET PARAMETERS
@@ -428,11 +526,15 @@ if __name__ == '__main__':
     """
     path_to_processed_data = os.path.join(os.getcwd(), "..", "data", "processed")
     years = find_years(path_to_processed_data=path_to_processed_data)
-    power_capacity, paper_metrics = get_processed_data(path_to_processed_data=path_to_processed_data)
+    power_capacity, paper_metrics = get_processed_data(
+        path_to_processed_data=path_to_processed_data
+    )
 
     # Transform capacity to continental and national scale
     power_capacity_continental_2050 = power_capacity.get(year).loc["Europe", :, :]
-    power_capacity_national_2050 = power_capacity.get(year).drop(index="Europe", level="region")
+    power_capacity_national_2050 = power_capacity.get(year).drop(
+        index="Europe", level="region"
+    )
 
     print(power_capacity_continental_2050)
     """
@@ -444,12 +546,15 @@ if __name__ == '__main__':
     # Find optimal number of clusters of SPORES (=scenario's) by using KMeans clustering and looking for the "elbow" in the Elbow curve
     if elbow_figures:
         find_optimal_clusters(spores_data=power_capacity_continental_2050)
+        find_optimal_clusters2(spores_data=power_capacity_continental_2050)
 
     # Pick a number of clusters based on the elbow plot
-    n_clusters_2050 = 11
+    n_clusters_2050 = 10
 
     # Cluster SPORES data for the chosen number of clusters
-    power_capacity_2050_clustered, cluster_mapper_2050, centroids = cluster_spores_data(power_capacity_continental_2050, n_clusters_2050)
+    power_capacity_2050_clustered, cluster_mapper_2050, centroids = cluster_spores_data(
+        power_capacity_continental_2050, n_clusters_2050
+    )
 
     print(power_capacity_2050_clustered)
     print(cluster_mapper_2050)
@@ -461,8 +566,13 @@ if __name__ == '__main__':
     # print(power_capacity_national_2050.unstack(["technology", "region"]))
 
     # Add cluster column to paper metrics
+
+    print("tEST")
+    print(paper_metrics.get("2030").squeeze())
     # FIXME: cluster mapping goes wrong because the spores in 2030 are not numbered but named
-    paper_metrics[year] = add_cluster_index_to_series(data=paper_metrics.get(year), cluster_mapper=cluster_mapper_2050)
+    paper_metrics[year] = add_cluster_index_to_series(
+        data=paper_metrics.get(year), cluster_mapper=cluster_mapper_2050
+    )
 
     print(paper_metrics[year])
 
@@ -475,13 +585,19 @@ if __name__ == '__main__':
     # plot_scenarios_capacity_distribution(clustered_spores_data=power_capacity_2050_clustered, year=2050, region=region)
 
     # Calculate average capacities for each scenario
-    scenarios_2050 = power_capacity_2050_clustered.groupby(["cluster", "technology"]).agg(["min", "max", "mean", "median"])
+    scenarios_2050 = power_capacity_2050_clustered.groupby(
+        ["cluster", "technology"]
+    ).agg(["min", "max", "mean", "median"])
 
     # Visualise average capacities for each scenario in geographical plot (like in the paper)
-    plot_scenarios_as_stacked_barcharts(clustered_spores_data=power_capacity_2050_clustered, value="mean", year=year)
+    plot_scenarios_as_stacked_barcharts(
+        clustered_spores_data=power_capacity_2050_clustered, value="mean", year=year
+    )
 
-    #FIXME: check if the clustering algorithm finds the same clusters each time!
-    cluster_df = pd.DataFrame.from_dict(cluster_mapper_2050, orient="index", columns=["cluster"])
+    # FIXME: check if the clustering algorithm finds the same clusters each time!
+    cluster_df = pd.DataFrame.from_dict(
+        cluster_mapper_2050, orient="index", columns=["cluster"]
+    )
     spores_per_cluster = cluster_df.groupby("cluster").size()
     print(spores_per_cluster)
     print(spores_per_cluster.sum())
@@ -490,8 +606,10 @@ if __name__ == '__main__':
     # Plot 2050 clusters
     for cluster in power_capacity_2050_clustered.index.unique(level="cluster"):
         # Visualise trade-offs between technologies using stacked bar charts for each clustered scenario
-        plot_metrics_distribution(metrics=paper_metrics.get(year), focus_cluster=cluster, year=year)
+        plot_metrics_distribution(
+            metrics=paper_metrics.get(year), focus_cluster=cluster, year=year
+        )
 
     plt.show()
 
-    #FIXME: make some form of a decision tree to describe scenario's?
+    # FIXME: make some form of a decision tree to describe scenario's?

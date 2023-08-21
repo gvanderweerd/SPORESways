@@ -22,30 +22,6 @@ def get_raw_data(paths_to_raw_data, years):
     return data
 
 
-def get_processed_data(spores_data, path_to_processed_data, save):
-    for year in spores_data.keys():
-        # If the directory data/processed/{year} does not exist make directory
-        path_to_result = os.path.join(path_to_processed_data, year)
-        if not os.path.exists(path_to_result):
-            os.makedirs(path_to_result)
-
-        # Calculate metrics (used in Pickering et al. 2022)
-        paper_metrics = get_paper_metrics(
-            data_dict=spores_data.get(year),
-            result_path=path_to_result,
-            save_to_csv=save,
-        )
-
-        # Process spores results:
-        #   - to a national level (and include total values for the whole continent under region "Europe")
-        #   - combine the results for all years in that are defined in one file
-        power = get_power_capacity2(
-            spores_data=spores_data.get(year),
-            result_path=path_to_result,
-            save_to_csv=save,
-        )
-
-
 def convert_spore_names_to_integers(input_data_dict):
     output_data_dict = {}
 
@@ -73,6 +49,31 @@ def get_spore_string_to_integer_map(spores_series):
     }
 
 
+def save_processed_data(spores_data, path_to_processed_data, save=False):
+    for year in spores_data.keys():
+        # If the directory data/processed/{year} does not exist make directory
+        path_to_result = os.path.join(path_to_processed_data, year)
+        if not os.path.exists(path_to_result):
+            os.makedirs(path_to_result)
+
+        # Calculate metrics (used in Pickering et al. 2022)
+        paper_metrics = get_paper_metrics(
+            data_dict=spores_data.get(year),
+            result_path=path_to_result,
+            save_to_csv=save,
+        )
+
+        # Process spores results:
+        #   - to a national level (and include total values for the whole continent under region "Europe")
+        #   - combine the results for all years in that are defined in one file
+        power = get_power_capacity2(
+            spores_data=spores_data.get(year),
+            result_path=path_to_result,
+            save_to_csv=save,
+        )
+    return power, paper_metrics
+
+
 if __name__ == "__main__":
     """
     0. SET PARAMETERS
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     years = ["2030", "2050"]
 
     # Set to True if you want processed data to be saved as new csv files
-    save_processed_data = True
+    save = True
 
     # Set this to a list of years (like ["2030"]) if the spores results are provided in different folders for different categories of spores results
     # Set this to None if spores results are provided in one folder containing all spores
@@ -131,10 +132,10 @@ if __name__ == "__main__":
     data["2030"] = convert_spore_names_to_integers(data.get("2030"))
 
     # Process spores and save to "processed data"
-    get_processed_data(
+    save_processed_data(
         spores_data=data,
         path_to_processed_data=path_to_processed_spores,
-        save=save_processed_data,
+        save=save,
     )
 
     """
