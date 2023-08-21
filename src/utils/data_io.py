@@ -270,7 +270,7 @@ def get_paper_metrics(data_dict, result_path, save_to_csv=False):
     metrics.index = metrics.index.reorder_levels(["spore", "metric", "unit"])
     metrics.name = "paper_metrics"
 
-    # Save to .csv or return dataframe
+    # Save to .csv and return dataframe
     if save_to_csv:
         metrics.to_csv(os.path.join(result_path, "paper_metrics.csv"))
 

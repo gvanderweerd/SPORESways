@@ -31,9 +31,12 @@ ENERGY_PRODUCERS = {
 }
 
 # Heat sector
-HEAT_TECHS_BUILDING = ['biofuel_boiler', 'electric_heater', 'hp', 'methane_boiler']
+HEAT_TECHS_BUILDING = ["biofuel_boiler", "electric_heater", "hp", "methane_boiler"]
 HEAT_TECHS_DISTRICT = [
-    'chp_biofuel_extraction', 'chp_methane_extraction', 'chp_wte_back_pressure', 'chp_hydrogen'
+    "chp_biofuel_extraction",
+    "chp_methane_extraction",
+    "chp_wte_back_pressure",
+    "chp_hydrogen",
 ]
 COOKING_TECHS = ["electric_hob", "gas_hob"]
 HEAT_PRODUCERS = {
@@ -48,15 +51,13 @@ HEAT_PRODUCERS = {
 
 # Storage
 STORAGE_DISCHARGE_TECHS = [
-    'battery_storage',
-    'heat_storage_big',
-    'heat_storage_small',
-    'hydro_storage',
-    'hydrogen_storage',
-    'ccgt'
+    "battery_storage",
+    "heat_storage_big",
+    "heat_storage_small",
+    "hydro_storage",
+    "hydrogen_storage",
+    "ccgt",
 ]
-
-
 
 
 # FIXME: base these numbers on research
@@ -71,10 +72,7 @@ ELECTRICITY_PRODUCERS_LIFE = {
     "Bio to liquids": 30,
 }
 
-GRID_TECHS_SPORES = {
-    "ac_transmission": "Power grid",
-    "dc_transmission": "Power grid"
-}
+GRID_TECHS_SPORES = {"ac_transmission": "Power grid", "dc_transmission": "Power grid"}
 
 ELECTRICITY_PRODUCERS_SPORES = {
     "open_field_pv": "PV",
@@ -121,7 +119,7 @@ EL_HEAT_PRODUCERS = {
 }
 FUEL_PRODUCERS = {
     "electrolysis": "Hydrogen",
-    #FIXME: find the other fuel producers and summarise them as "Conventional fuels" (think, diesel, methane, etc.)
+    # FIXME: find the other fuel producers and summarise them as "Conventional fuels" (think, diesel, methane, etc.)
 }
 
 HYDROGEN_PRODUCERS = {
@@ -159,6 +157,19 @@ pv_growth_rates_exponential = {
 }
 
 NUCLEAR_HEAT_MULTIPLIER = 1 / 0.4  # our model uses an efficiency of 40% for nuclear
+
+COUNTRY_MAPPING_IRENASTAT = {
+    "Netherlands (Kingdom of the)": "Netherlands",
+}
+TECH_MAPPING_IRENASTAT = {
+    "Onshore wind energy": "Onshore wind",
+    "Offshore wind energy": "Offshore wind",
+}
+
+TECH_MAPPING_EMBER = {
+    "Gas": "CCGT",
+    "Solar": "PV",
+}
 
 # Locations
 REGION_MAPPING = {
@@ -331,7 +342,6 @@ s_curve_params_power_sector = {
 calculate_growth_factor = lambda start_capacity, end_capacity, start_year, end_year: (
     end_capacity / start_capacity
 ) ** (1 / (end_year - start_year))
-
 
 
 """Create a simulated series for power and heat capacities"""
