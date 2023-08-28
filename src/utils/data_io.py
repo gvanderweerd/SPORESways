@@ -438,6 +438,32 @@ def get_spore_to_scenario_maps(path_to_processed_data, years, resolution="Europe
     return spore_to_scenario_maps
 
 
+def load_processed_paper_metrics(path_to_processed_data, years):
+    metrics = {}
+
+    for year in years:
+        # Paper metrics
+        metrics[year] = pd.read_csv(
+            os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
+            index_col=["spore", "metric", "unit"],
+        ).squeeze()
+
+    return metrics
+
+
+def load_processed_paper_metrics(path_to_processed_data, years):
+    power = {}
+
+    for year in years:
+        # Get power capacity
+        power[year] = pd.read_csv(
+            os.path.join(path_to_processed_data, year, "power_capacity.csv"),
+            index_col=["region", "technology", "spore"],
+        ).squeeze()
+
+    return power
+
+
 def get_processed_data(path_to_processed_data, years):
     power = {}
     metrics = {}

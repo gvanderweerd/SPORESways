@@ -45,6 +45,8 @@ POWER_TECH_COLORS = {
     "Coal": "#000000",  # Black = #000000, Grey = #808080
     "coal": "#000000",
 }
+
+
 metric_plot_order = {
     "curtailment": 2,
     "electricity_production_gini": 5,
@@ -117,6 +119,20 @@ def normalise_to_max(x):
     return x / max_value
 
 
+def hex_to_greyscale(hex_value):
+    # Convert hex to RGB
+    r, g, b = (int(hex_value.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
+
+    # Convert RGB to grayscale and then to hex
+    grey_value = int(0.2989 * r + 0.5870 * g + 0.1140 * b)
+    return "#{:02x}{:02x}{:02x}".format(grey_value, grey_value, grey_value)
+
+
+POWER_TECH_COLORS_GREYED = {
+    tech: hex_to_greyscale(color) for tech, color in POWER_TECH_COLORS.items()
+}
+
+
 def get_color_dict2(label_list):
     color_palette = sns.color_palette("bright")
     colors = {
@@ -152,11 +168,14 @@ def plot_scenario_capacity_stacked_barchart(
     year,
     ax,
     spores_amount_y_offset=20,
+    greyed_out_scenarios=[],
 ):
     # Plot figure
-    scenario_values.plot(ax=ax, kind="bar", stacked=True, color=POWER_TECH_COLORS)
+    scenario_bars = scenario_values.plot(
+        ax=ax, kind="bar", stacked=True, color=POWER_TECH_COLORS
+    )
     ax.set_xlabel(f"{year}", weight="bold")
-    ax.set_ylabel("Installed capacity [GW]", weight="bold")
+    ax.set_ylabel("Average installed capacity [GW]", weight="bold")
     ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
 
     # Annotate number of SPORE in each cluster on top of each bar
@@ -169,13 +188,22 @@ def plot_scenario_capacity_stacked_barchart(
             va="center",
             ha="center",
         )
+
+    # Grey out bars if needed
+    techs = scenario_values.columns.to_list()
+    for tech_index, bar_container in enumerate(ax.containers):
+        tech = techs[tech_index]
+        for cluster_index, bar in enumerate(bar_container):
+            if cluster_index in greyed_out_scenarios:
+                bar.set_facecolor(POWER_TECH_COLORS_GREYED[tech])
+
     # Remove legend
     ax.get_legend().remove()
     # Remove top and right spines
     remove_top_and_right_spines(ax)
 
 
-def plot_scenario_analysis():
+def plot_scenario_analysis_test():
     with sns.plotting_context("paper", font_scale=1.5):
         ax = {}
         fig = plt.figure(figsize=(20, 2 * 7 + 4))
@@ -356,7 +384,7 @@ def plot_metrics_distribution(ax, metrics, year, focus_cluster=None):
         xticklabels.append(
             f"{metric_plot_names[_metric]}\n({metric_range['min']} - {metric_range['max']}){_unit}"
         )
-    ax.set_xticklabels(xticklabels, fontsize=8)
+    ax.set_xticklabels(xticklabels, fontsize=9)
 
     # FIXME: get unique spores only
     # print(spores_to_plot_in_color)
@@ -479,11 +507,11 @@ def plot_capacity_distribution(ax, capacity, year, resolution, focus_cluster=Non
         _x += 1
 
         # Format x-axis labels
-        capacity_range = capacity_ranges.loc[_tech].round(0)
+        capacity_range = capacity_ranges.loc[_tech].round(0).astype(int)
         xticklabels.append(
-            f"{_tech}\n({capacity_range['min']} - {capacity_range['max']})\ngw"
+            f"{_tech}\n({capacity_range['min']} - {capacity_range['max']}) gw"
         )
-    ax.set_xticklabels(xticklabels, fontsize=8)
+    ax.set_xticklabels(xticklabels, fontsize=9)
 
     # Remove top and right spines
     remove_top_and_right_spines(ax)
@@ -708,7 +736,7 @@ def plot_scenario_analysis(
         ax["title"] = plt.subplot(gs[_row, :], frameon=False)
         plot_title(
             ax["title"],
-            title=f"Scenario {scenario_number}, {year} ({n_spores} / {n_spores_total} SPORES)",
+            title=f"{spatial_resolution} scenario {scenario_number}, {year} ({n_spores} / {n_spores_total} SPORES)",
         )
 
         # Plot capacity bar for focus scenario
@@ -743,6 +771,119 @@ def plot_scenario_analysis(
         plt.tight_layout(pad=1)
         plt.savefig(
             f"../figures/appendices/scenario_analysis/analysis_v0_{spatial_resolution}.png",
+            bbox_inches="tight",
+            dpi=120,
+        )
+
+
+def plot_scenario_analysis_new(
+    power_capacity,
+    paper_metrics,
+    spatial_resolution,
+    scenario_description,
+    scenario_description_eu,
+    infeasible_european_scenarios,
+    n_spores_per_cluster_eu,
+    scenario_number,
+    year,
+):
+    # FIXME: this data transformation is now done on multiple places --> do this in a more efficient way on a logical place
+    # See: plot_scenario_analysis_barchart
+    # See: plot_capacity_bar
+    scenario_values_eu = (
+        scenario_description_eu.get(year)
+        .loc[:, ["cluster", "technology", "mean"]]
+        .pivot_table(index="cluster", columns="technology")["mean"]
+    )
+
+    # FIXME: determine number of technologies and metrics dynamically
+    n_techs = 6
+    n_metrics = 5
+    n_total = n_techs + n_metrics
+    n_rows = 3
+    n_cols = 3
+    n_spores_per_cluster = count_spores_per_cluster(paper_metrics.get(year))
+    n_spores = n_spores_per_cluster.get(scenario_number)
+    n_spores_total = len(power_capacity.get(year).index.unique(level="spore"))
+
+    with sns.plotting_context("paper", font_scale=1.5):
+        ax = {}
+        fig = plt.figure(figsize=(20, 18))
+        gs = mpl.gridspec.GridSpec(
+            nrows=n_rows,
+            ncols=n_cols,
+            figure=fig,
+            hspace=0.2,
+            wspace=0.3,
+            width_ratios=[1, (n_techs / n_total) * 25, (n_metrics / n_total) * 25],
+            height_ratios=[2, 16, 16],
+        )
+        _row = 0
+        alpha_idx = 0
+
+        # Plot figure title
+        ax["title"] = plt.subplot(gs[_row, :], frameon=False)
+        plot_title(
+            ax["title"],
+            title=f"{spatial_resolution} scenario {scenario_number}, {year} ({n_spores} / {n_spores_total} SPORES)",
+        )
+
+        # Plot capacity bar for focus scenario
+        ax["capacity_bar"] = plt.subplot(gs[1, 0], frameon=False)
+        plot_capacity_bar(
+            ax=ax["capacity_bar"],
+            scenario_description=scenario_description,
+            year=year,
+            focus_scenario=scenario_number,
+            value_to_plot="mean",
+        )
+
+        # Plot capacity distribution for focus scenario
+        ax["capacity_distribution"] = plt.subplot(gs[1, 1], frameon=True)
+        plot_capacity_distribution(
+            ax=ax["capacity_distribution"],
+            capacity=power_capacity.get(year),
+            year=year,
+            resolution=spatial_resolution,
+            focus_cluster=scenario_number,
+        )
+
+        # Plot power grid capacity map
+        ax["grid_capacity"] = plt.subplot(gs[1, 2], frameon=True)
+        ax["grid_capacity"].text(
+            0.5, 0.5, "Grid Map", ha="center", va="center", fontsize=10
+        )
+
+        gs_extra_row = mpl.gridspec.GridSpecFromSubplotSpec(
+            1, 2, subplot_spec=gs[2, :], wspace=0.3, width_ratios=[1, 1]
+        )
+
+        # Plot European scenarios that are still possible in the given national scenario
+        ax["european_scenarios"] = plt.subplot(gs_extra_row[0, 0], frameon=True)
+        plot_scenario_capacity_stacked_barchart(
+            scenario_values=scenario_values_eu,
+            n_spores_per_cluster=n_spores_per_cluster_eu.get(year),
+            year=year,
+            greyed_out_scenarios=infeasible_european_scenarios,
+            ax=ax["european_scenarios"],
+            spores_amount_y_offset=200,
+        )
+        ax["european_scenarios"].set_xlabel(
+            f"Scenarios, Europe ({year})", weight="bold"
+        )
+
+        # Plot metrics distribution for focus scenario
+        ax["metrics_distribution"] = plt.subplot(gs_extra_row[0, 1], frameon=True)
+        plot_metrics_distribution(
+            ax=ax["metrics_distribution"],
+            metrics=paper_metrics.get(year),
+            year="2030",
+            focus_cluster=scenario_number,
+        )
+
+        plt.tight_layout(pad=1)
+        plt.savefig(
+            f"../figures/appendices/scenario_analysis/analysis_v1_{spatial_resolution}.png",
             bbox_inches="tight",
             dpi=120,
         )
