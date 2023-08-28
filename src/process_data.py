@@ -57,8 +57,8 @@ def save_processed_data(spores_data, path_to_processed_data, save=False):
             os.makedirs(path_to_result)
 
         # Calculate metrics (used in Pickering et al. 2022)
-        paper_metrics = get_paper_metrics(
-            data_dict=spores_data.get(year),
+        paper_metrics = process_paper_metrics(
+            spores_data=spores_data.get(year),
             result_path=path_to_result,
             save_to_csv=save,
         )
@@ -66,12 +66,17 @@ def save_processed_data(spores_data, path_to_processed_data, save=False):
         # Process spores results:
         #   - to a national level (and include total values for the whole continent under region "Europe")
         #   - combine the results for all years in that are defined in one file
-        power = get_power_capacity2(
+        power = process_power_capacity(
             spores_data=spores_data.get(year),
             result_path=path_to_result,
             save_to_csv=save,
         )
-    return power, paper_metrics
+
+        grid_transfer_capacity = process_grid_transfer_capacity(
+            spores_data=spores_data.get(year),
+            result_path=path_to_result,
+            save_to_csv=save,
+        )
 
 
 if __name__ == "__main__":
@@ -146,8 +151,8 @@ if __name__ == "__main__":
         path_to_spores=paths_to_raw_spores["2050"], file_names=["paper_metrics"]
     ).get("paper_metrics")
     # Get paper metrics from own calculation
-    paper_metrics_2050_calculated = get_paper_metrics(
-        data_dict=data.get("2050"),
+    paper_metrics_2050_calculated = process_paper_metrics(
+        spores_data=data.get("2050"),
         result_path=os.path.join(path_to_processed_spores, "2050"),
         save_to_csv=False,
     )

@@ -249,17 +249,17 @@ def add_average_national_imports(data_dict):
     return average_national_import
 
 
-def get_paper_metrics(data_dict, result_path, save_to_csv=False):
+def process_paper_metrics(spores_data, result_path, save_to_csv=False):
     # Add metrics
     metrics = (
         pd.concat(
             [
-                add_transport_electrification(data_dict),
-                add_heat_electrification(data_dict),
-                add_electricity_production_gini(data_dict),
-                add_storage_discharge_capacity(data_dict),
+                add_transport_electrification(spores_data),
+                add_heat_electrification(spores_data),
+                add_electricity_production_gini(spores_data),
+                add_storage_discharge_capacity(spores_data),
                 # FIXME: average_national_imports does not produce the same result as we find in "average_national_imports.csv" in 2050 euro-spores-results
-                add_average_national_imports(data_dict),
+                add_average_national_imports(spores_data),
             ],
             axis=1,
         )
@@ -275,6 +275,24 @@ def get_paper_metrics(data_dict, result_path, save_to_csv=False):
         metrics.to_csv(os.path.join(result_path, "paper_metrics.csv"))
 
     return metrics
+
+
+def process_grid_transfer_capacity(spores_data, result_path, save_to_csv=False):
+    grid_transfer_capacity = (
+        spores_data.get("grid_transfer_capacity")
+        .groupby(
+            ["spore", REGION_MAPPING, REGION_MAPPING],
+            level=["spore", "importing_region", "exporting_region"],
+        )
+        .sum()
+    )
+
+    if save_to_csv:
+        grid_transfer_capacity.to_csv(
+            os.path.join(result_path, "grid_transfer_capacity.csv")
+        )
+
+    return grid_transfer_capacity
 
 
 def get_gini(metric):
@@ -303,7 +321,7 @@ def filter_power_capacity(df, spatial_resolution):
     return df
 
 
-def get_power_capacity2(spores_data, result_path, save_to_csv=False):
+def process_power_capacity(spores_data, result_path, save_to_csv=False):
     """
 
     :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
