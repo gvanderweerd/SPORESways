@@ -287,6 +287,12 @@ def process_grid_transfer_capacity(spores_data, result_path, save_to_csv=False):
         .sum()
     )
 
+    # Drop all subnational links where importing_region == exporting_region
+    grid_transfer_capacity = grid_transfer_capacity.loc[
+        grid_transfer_capacity.index.get_level_values("importing_region")
+        != grid_transfer_capacity.index.get_level_values("exporting_region")
+    ]
+
     if save_to_csv:
         grid_transfer_capacity.to_csv(
             os.path.join(result_path, "grid_transfer_capacity.csv")
@@ -469,7 +475,7 @@ def load_processed_paper_metrics(path_to_processed_data, years):
     return metrics
 
 
-def load_processed_paper_metrics(path_to_processed_data, years):
+def load_processed_power_capacity(path_to_processed_data, years):
     power = {}
 
     for year in years:
@@ -480,6 +486,19 @@ def load_processed_paper_metrics(path_to_processed_data, years):
         ).squeeze()
 
     return power
+
+
+def load_processed_grid_transfer_capacity(path_to_processed_data, years):
+    grid = {}
+
+    for year in years:
+        # Get power capacity
+        grid[year] = pd.read_csv(
+            os.path.join(path_to_processed_data, year, "grid_transfer_capacity.csv"),
+            index_col=["spore", "importing_region", "exporting_region"],
+        ).squeeze()
+
+    return grid
 
 
 def get_processed_data(path_to_processed_data, years):
