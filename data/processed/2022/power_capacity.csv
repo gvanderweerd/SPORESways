@@ -1,4 +1,20 @@
 region,technology,capacity_gw,spore
+France,Coal,2.51,0
+France,CCGT,8.82,0
+France,Hydro,24.56,0
+France,Nuclear,61.4,0
+France,PV,17.42,0
+France,CHP,0.0,0
+France,Onshore wind,20.63798,0
+France,Offshore wind,0.482,0
+Belgium,Coal,0.0,0
+Belgium,CCGT,5.63,0
+Belgium,Hydro,0.11,0
+Belgium,Nuclear,5.85,0
+Belgium,PV,6.9,0
+Belgium,CHP,0.0,0
+Belgium,Onshore wind,2.9896,0
+Belgium,Offshore wind,2.2618,0
 Netherlands,Coal,3.5,0
 Netherlands,CCGT,14.04,0
 Netherlands,Hydro,0.04,0
@@ -7,6 +23,22 @@ Netherlands,PV,18.85,0
 Netherlands,CHP,0.0,0
 Netherlands,Onshore wind,6.176,0
 Netherlands,Offshore wind,2.571,0
+Spain,Coal,2.95,0
+Spain,CCGT,26.94,0
+Spain,Hydro,16.8,0
+Spain,Nuclear,7.12,0
+Spain,PV,20.52,0
+Spain,CHP,0.0,0
+Spain,Onshore wind,29.30284,0
+Spain,Offshore wind,0.005,0
+Germany,Coal,40.36,0
+Germany,CCGT,24.89,0
+Germany,Hydro,5.54,0
+Germany,Nuclear,8.11,0
+Germany,PV,66.66,0
+Germany,CHP,0.0,0
+Germany,Onshore wind,58.165,0
+Germany,Offshore wind,8.129,0
 Italy,Coal,6.17,0
 Italy,CCGT,43.75,0
 Italy,Hydro,18.84,0
