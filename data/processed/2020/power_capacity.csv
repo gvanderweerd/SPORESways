@@ -1,0 +1,17 @@
+region,technology,capacity_gw,spore
+Netherlands,Coal,3.5,0
+Netherlands,CCGT,15.06,0
+Netherlands,Hydro,0.04,0
+Netherlands,Nuclear,0.49,0
+Netherlands,PV,11.11,0
+Netherlands,CHP,0.0,0
+Netherlands,Onshore wind,4.18838,0
+Netherlands,Offshore wind,2.4595,0
+Italy,Coal,7.74,0
+Italy,CCGT,43.84,0
+Italy,Hydro,18.75,0
+Italy,Nuclear,,0
+Italy,PV,21.66,0
+Italy,CHP,0.0,0
+Italy,Onshore wind,10.87062,0
+Italy,Offshore wind,0.0,0

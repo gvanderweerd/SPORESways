@@ -71,11 +71,12 @@ def process_historic_data(
 
             # Combine Irenastat and Ebmer data
             df = pd.concat([df, df_ember, df_irenastat]).reset_index(drop=True)
+    df["spore"] = 0
 
     # Save to .csv and return dataframe
     if save:
         save_processed_historic_data(
-            processed_data=df,
+            processed_data=df.drop(columns=["year"]),
             path_to_result=os.path.join(path_to_processed_data, str(year)),
         )
 
@@ -87,7 +88,9 @@ def save_processed_historic_data(processed_data, path_to_result):
     if not os.path.exists(path_to_result):
         os.makedirs(path_to_result)
 
-    processed_data.to_csv(os.path.join(path_to_result, "power_capacity.csv"))
+    processed_data.to_csv(
+        os.path.join(path_to_result, "power_capacity.csv"), index=False
+    )
 
 
 if __name__ == "__main__":

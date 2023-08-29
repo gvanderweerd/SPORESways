@@ -1,17 +1,17 @@
-,year,region,technology,capacity_gw
-0,2022,Netherlands,Coal,3.5
-1,2022,Netherlands,CCGT,14.04
-2,2022,Netherlands,Hydro,0.04
-3,2022,Netherlands,Nuclear,0.51
-4,2022,Netherlands,PV,18.85
-5,2022,Netherlands,CHP,0.0
-6,2022,Netherlands,Onshore wind,6.176
-7,2022,Netherlands,Offshore wind,2.571
-8,2022,Italy,Coal,6.17
-9,2022,Italy,CCGT,43.75
-10,2022,Italy,Hydro,18.84
-11,2022,Italy,Nuclear,
-12,2022,Italy,PV,25.08
-13,2022,Italy,CHP,0.0
-14,2022,Italy,Onshore wind,11.74973
-15,2022,Italy,Offshore wind,0.03
+region,technology,capacity_gw,spore
+Netherlands,Coal,3.5,0
+Netherlands,CCGT,14.04,0
+Netherlands,Hydro,0.04,0
+Netherlands,Nuclear,0.51,0
+Netherlands,PV,18.85,0
+Netherlands,CHP,0.0,0
+Netherlands,Onshore wind,6.176,0
+Netherlands,Offshore wind,2.571,0
+Italy,Coal,6.17,0
+Italy,CCGT,43.75,0
+Italy,Hydro,18.84,0
+Italy,Nuclear,,0
+Italy,PV,25.08,0
+Italy,CHP,0.0,0
+Italy,Onshore wind,11.74973,0
+Italy,Offshore wind,0.03,0
