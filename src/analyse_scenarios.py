@@ -201,17 +201,49 @@ def test_gridspec2(
         fig.tight_layout()
 
 
+def plot_scenario_heatmap(power_capacity, spatial_resolution):
+    # Normalise capacity
+    capacity_normalised = power_capacity.groupby(
+        level=["region", "technology"]
+    ).transform(normalise_to_max)
+    # Calculate median capacity for each technology in each scenario
+    median_capacity = (
+        power_capacity.groupby(level=["cluster", "technology"]).median().unstack()
+    )
+    median_capacity_normalised = (
+        capacity_normalised.groupby(level=["cluster", "technology"]).median().unstack()
+    )
+    print(median_capacity)
+    print(median_capacity_normalised)
+
+    plt.figure(figsize=(FIGWIDTH, FIGWIDTH))
+    sns.heatmap(
+        data=median_capacity_normalised,
+        annot=median_capacity,
+        cmap="RdBu_r",
+        fmt=".2f",
+        vmin=0,
+        vmax=1,
+        linewidth=0.5,
+        cbar_kws={
+            "label": "Median technology capacity (scaled per technology to maximum accross all SPORES)"
+        },
+    )
+    plt.ylabel(f"Scenarios in {spatial_resolution}")
+    plt.xlabel("Technologies")
+
+
 if __name__ == "__main__":
     """
     0. SET PARAMETERS
     """
     # Choose scenario_number to analyse
     focus_scenario = 4
-    focus_year = "2030"
+    focus_year = "2050"
     generate_figures_for_all_scenarios = False
 
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "Italy"
+    spatial_resolution = "Europe"
 
     """
     1. READ AND PREPARE DATA
@@ -291,7 +323,6 @@ if __name__ == "__main__":
             plot_scenario_analysis_v2(
                 power_capacity=power_capacity,
                 paper_metrics=paper_metrics,
-                grid_capacity=grid_capacity,
                 spatial_resolution=spatial_resolution,
                 scenario_description=scenario_description,
                 scenario_description_eu=scenario_description_eu,
@@ -299,7 +330,6 @@ if __name__ == "__main__":
                 n_spores_per_cluster_eu=n_spores_per_cluster_eu,
                 scenario_number=scenario,
                 year=focus_year,
-                max_link_capacity=max_link_capacity,
             )
     else:
         (
@@ -315,7 +345,6 @@ if __name__ == "__main__":
         plot_scenario_analysis_v2(
             power_capacity=power_capacity,
             paper_metrics=paper_metrics,
-            grid_capacity=grid_capacity,
             spatial_resolution=spatial_resolution,
             scenario_description=scenario_description,
             scenario_description_eu=scenario_description_eu,
@@ -323,9 +352,12 @@ if __name__ == "__main__":
             n_spores_per_cluster_eu=n_spores_per_cluster_eu,
             scenario_number=focus_scenario,
             year=focus_year,
-            max_link_capacity=max_link_capacity,
         )
 
+    plot_scenario_heatmap(
+        power_capacity=power_capacity_eu.get("2050"),
+        spatial_resolution=spatial_resolution,
+    )
     plt.show()
 
     # fig, ax = plt.subplots()
