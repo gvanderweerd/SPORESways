@@ -60,7 +60,7 @@ def cluster_spores(data_series, n_clusters):
 
 
 def find_n_clusters(
-    data_series, min_clusters=2, max_clusters=15, method="silhouette", plot=True
+    data_series, min_clusters=2, max_clusters=10, method="silhouette", plot=True
 ):
     # Prepare data for clustering
     data_series_prepared = prepare_data_for_clustering(data_series)
@@ -124,7 +124,7 @@ def prepare_data_for_clustering(data_series):
 
 def save_cluster_map(cluster_map, path_to_directory, spatial_granularity):
     file_path = os.path.join(
-        path_to_directory, f"spore_to_scenario_{spatial_granularity}.json"
+        path_to_directory, f"spore_to_scenario_silhouette_{spatial_granularity}.json"
     )
     with open(file_path, "w") as file:
         json.dump(cluster_map, file)
@@ -137,15 +137,22 @@ if __name__ == "__main__":
     # Choose scenario_number to analyse
     focus_scenario = 0
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "Netherlands"
+    spatial_resolution = "Spain"
     # Set to True if you want to manually force the clustering algorithm to find a number of clusters
-    manually_set_n_clusters = True
+    manually_set_n_clusters = False
 
     # Based on looking at Elbow figure & Silhouette score figure the best number of clusters is chosen:
     # National: {"2030": 14, "2050": 14}
     # Europe: {"2030": 10, "2050": 6} #FIXME: or "2050": 9?
     # Italy: {"2030": 6, "2050": 8}
     # Netherlands: {"2030": 6, "2050": 5}
+    # Germany: {"2030": 5, "2050": 4}
+    # Spain: {"2030": 6, "2050": 7}
+    # France: {"2030": 8, "2050": 10}
+    # France: {"2030": 7, "2050": 6}
+    # United Kingdom: {}
+    # Denmark: {}
+    # Sweden: {}
     if manually_set_n_clusters:
         n_clusters_manual = {"2030": 6, "2050": 5}
 
@@ -174,10 +181,11 @@ if __name__ == "__main__":
             f"\n For clustering {year} SPORES results based on installed capacity of power generation technologies in {spatial_resolution} we find: \n"
         )
         # Find optimal number of clusters based on Elbow and Silhouette score methods
-        find_n_clusters(
+        n_clusters = find_n_clusters(
             data_series=power_capacity.get(year),
             min_clusters=2,
-            max_clusters=15,
+            max_clusters=10,
+            method="silhouette",
             plot=True,
         )
         plt.show()
@@ -185,11 +193,11 @@ if __name__ == "__main__":
         if manually_set_n_clusters:
             # Set number of clusters to a manually chosen integer value
             n_clusters = n_clusters_manual.get(year)
-        else:
-            # Prompt user to input the number of clusters based on the graph
-            n_clusters = int(
-                input(f"\n Enter the optimal number of clusters for the year {year}:  ")
-            )
+        # else:
+        #     # Prompt user to input the number of clusters based on the graph
+        #     n_clusters = int(
+        #         input(f"\n Enter the optimal number of clusters for the year {year}:  ")
+        #     )
 
         # Cluster SPORES using K-Means clustering
         power_capacity[year] = cluster_spores(power_capacity.get(year), n_clusters)

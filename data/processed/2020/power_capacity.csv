@@ -1,4 +1,12 @@
 region,technology,capacity_gw,spore
+Sweden,Coal,0.0,0
+Sweden,CCGT,0.48,0
+Sweden,Hydro,16.41,0
+Sweden,Nuclear,7.78,0
+Sweden,PV,1.11,0
+Sweden,CHP,0.0,0
+Sweden,Onshore wind,9.773,0
+Sweden,Offshore wind,0.203,0
 France,Coal,3.74,0
 France,CCGT,8.37,0
 France,Hydro,24.23,0
@@ -31,6 +39,14 @@ Spain,PV,12.44,0
 Spain,CHP,0.0,0
 Spain,Onshore wind,26.81419,0
 Spain,Offshore wind,0.005,0
+United Kingdom,Coal,6.33,0
+United Kingdom,CCGT,35.8,0
+United Kingdom,Hydro,2.19,0
+United Kingdom,Nuclear,9.26,0
+United Kingdom,PV,13.58,0
+United Kingdom,CHP,0.0,0
+United Kingdom,Onshore wind,14.075,0
+United Kingdom,Offshore wind,10.383,0
 Germany,Coal,46.86,0
 Germany,CCGT,25.36,0
 Germany,Hydro,5.45,0
