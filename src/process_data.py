@@ -7,9 +7,11 @@ def get_raw_data(paths_to_raw_data, years):
     files = [
         "nameplate_capacity",
         "grid_transfer_capacity",
-        "storage_capacity",
         "flow_out_sum",
         "net_import_sum",
+        "storage_capacity",
+        "primary_energy_supply",
+        "final_consumption",
     ]
 
     # Read spores results for the years that were defined
@@ -73,6 +75,24 @@ def save_processed_data(spores_data, path_to_processed_data, save=False):
         )
 
         grid_transfer_capacity = process_grid_transfer_capacity(
+            spores_data=spores_data.get(year),
+            result_path=path_to_result,
+            save_to_csv=save,
+        )
+
+        storage_capacity = process_storage_capacity(
+            spores_data=spores_data.get(year),
+            result_path=path_to_result,
+            save_to_csv=save,
+        )
+
+        # final_consumption = process_final_consumption(
+        #     spores_data=spores_data.get(year),
+        #     result_path=path_to_result,
+        #     save_to_csv=save,
+        # )
+        #
+        tpes = process_primary_energy_supply(
             spores_data=spores_data.get(year),
             result_path=path_to_result,
             save_to_csv=save,

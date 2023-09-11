@@ -160,6 +160,7 @@ NUCLEAR_HEAT_MULTIPLIER = 1 / 0.4  # our model uses an efficiency of 40% for nuc
 
 COUNTRY_MAPPING_IRENASTAT = {
     "Netherlands (Kingdom of the)": "Netherlands",
+    "United Kingdom of Great Britain and Northern Ireland (the)": "United Kingdom",
 }
 TECH_MAPPING_IRENASTAT = {
     "Onshore wind energy": "Onshore wind",

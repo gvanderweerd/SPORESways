@@ -131,7 +131,11 @@ def read_spores_data(path_to_spores, file_names=None):
     else:
         print("Reading all .csv files")
 
-    data = {resource["name"]: to_df(resource).squeeze() for resource in resources}
+    data = {}
+    for resource in resources:
+        df = to_df(resource).squeeze()
+        df.name = resource["name"]
+        data[resource["name"]] = df
     return data
 
 
@@ -368,6 +372,119 @@ def process_power_capacity(spores_data, result_path, save_to_csv=False):
         return power_capacity
 
 
+def process_storage_capacity(spores_data, result_path, save_to_csv=False):
+    """
+
+    :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
+    :param save_to_csv:     Set to True if you want to save the capacity data to a .csv file called "power_capacity.csv"
+    :return:                A Series containing the capacities of electricity producting technologies for each country and for Europe as a whole
+    """
+
+    storage_capacity_national = (
+        spores_data.get("storage_capacity")
+        .xs("twh", level="unit")
+        .xs("electricity", level="carriers")
+        .unstack("spore")
+        .groupby(
+            [REGION_MAPPING, "technology"],
+            level=["region", "technology"],
+        )
+        .sum()
+        .stack("spore")
+    )
+    # Calculate continental capacity
+    storage_capacity_eu = storage_capacity_national.groupby(
+        ["technology", "spore"]
+    ).sum()
+
+    # Add "Europe" as an index with name "region" and reorder the index levels
+    index_names = ["region", "technology", "spore"]
+    storage_capacity_eu = pd.concat({"Europe": storage_capacity_eu}, names=["region"])
+    storage_capacity_eu = storage_capacity_eu.reorder_levels(index_names)
+
+    # Concatenate national and continental values in one Series
+    storage_capacity = pd.concat([storage_capacity_national, storage_capacity_eu])
+
+    storage_capacity.name = "capacity_twh"
+
+    if save_to_csv:
+        storage_capacity.to_csv(os.path.join(result_path, "storage_capacity.csv"))
+    else:
+        return storage_capacity
+
+
+def process_final_consumption(spores_data, result_path, save_to_csv=False):
+    """
+
+    :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
+    :param save_to_csv:     Set to True if you want to save the capacity data to a .csv file called "power_capacity.csv"
+    :return:                A Series containing the capacities of electricity producting technologies for each country and for Europe as a whole
+    """
+
+    final_consumption_national = (
+        spores_data.get("final_consumption")
+        .groupby(
+            ["spore", REGION_MAPPING, "carriers"],
+            level=["spore", "region", "carriers"],
+        )
+        .sum()
+    )
+    # Calculate continental capacity
+    final_consumption_eu = final_consumption_national.groupby(
+        ["carriers", "spore"]
+    ).sum()
+
+    # Add "Europe" as an index with name "region" and reorder the index levels
+    index_names = ["region", "carriers", "spore"]
+    final_consumption_eu = pd.concat({"Europe": final_consumption_eu}, names=["region"])
+    final_consumption_eu = final_consumption_eu.reorder_levels(index_names)
+
+    # Concatenate national and continental values in one Series
+    final_consumption = pd.concat([final_consumption_national, final_consumption_eu])
+
+    final_consumption.name = "final_consumption_twh"
+
+    if save_to_csv:
+        final_consumption.to_csv(os.path.join(result_path, "final_consumption.csv"))
+    else:
+        return final_consumption
+
+
+def process_primary_energy_supply(spores_data, result_path, save_to_csv=False):
+    """
+
+    :param spores_data:     A dictionary that contains SPORES data for 2020, 2030 and 2050.
+    :param save_to_csv:     Set to True if you want to save the capacity data to a .csv file called "power_capacity.csv"
+    :return:                A Series containing the capacities of electricity producting technologies for each country and for Europe as a whole
+    """
+
+    tpes_national = (
+        spores_data.get("primary_energy_supply")
+        .groupby(
+            ["spore", REGION_MAPPING, "carriers"],
+            level=["spore", "region", "carriers"],
+        )
+        .sum()
+    )
+    # Calculate continental supply
+    tpes_eu = tpes_national.groupby(["carriers", "spore"]).sum()
+
+    # Add "Europe" as an index with name "region" and reorder the index levels
+    index_names = ["region", "carriers", "spore"]
+    tpes_eu = pd.concat({"Europe": tpes_eu}, names=["region"])
+    tpes_eu = tpes_eu.reorder_levels(index_names)
+
+    # Concatenate national and continental values in one Series
+    tpes = pd.concat([tpes_national, tpes_eu])
+
+    tpes.name = "primary_energy_supply_twh"
+
+    if save_to_csv:
+        tpes.to_csv(os.path.join(result_path, "primary_energy_supply.csv"))
+    else:
+        return tpes
+
+
 def get_power_capacity(spores_data, result_path, save_to_csv=False):
     """
 
@@ -475,6 +592,81 @@ def load_processed_paper_metrics(path_to_processed_data, years):
     return metrics
 
 
+def load_raw_final_consumption(path_to_raw_data):
+    consumption = {}
+
+    consumption["2030"] = pd.read_csv(
+        os.path.join(
+            path_to_raw_data,
+            "euro-spores-results-2030",
+            "aggregated",
+            "data",
+            "final_consumption.csv",
+        ),
+        index_col=["spore", "sector", "subsector", "carriers", "locs", "unit"],
+    ).squeeze()
+    consumption["2050"] = pd.read_csv(
+        os.path.join(
+            path_to_raw_data,
+            "euro-spores-results-2050",
+            "aggregated-slack-10",
+            "data",
+            "final_consumption.csv",
+        ),
+        index_col=["spore", "sector", "subsector", "carriers", "locs", "unit"],
+    ).squeeze()
+
+    return consumption
+
+
+def load_raw_primary_energy_supply(path_to_raw_data):
+    tpes = {}
+
+    tpes["2030"] = (
+        pd.read_csv(
+            os.path.join(
+                path_to_raw_data,
+                "euro-spores-results-2030",
+                "aggregated",
+                "data",
+                "primary_energy_supply.csv",
+            ),
+            index_col=["spore", "locs", "carriers", "unit"],
+        )
+        .squeeze()
+        .groupby(
+            ["spore", REGION_MAPPING, "carriers", "unit"],
+            level=["spore", "locs", "carriers", "unit"],
+        )
+        .sum()
+    )
+    tpes["2050"] = (
+        pd.read_csv(
+            os.path.join(
+                path_to_raw_data,
+                "euro-spores-results-2050",
+                "aggregated-slack-10",
+                "data",
+                "primary_energy_supply.csv",
+            ),
+            index_col=["spore", "locs", "carriers", "unit"],
+        )
+        .squeeze()
+        .groupby(
+            ["spore", REGION_MAPPING, "carriers", "unit"],
+            level=[
+                "spore",
+                "locs",
+                "carriers",
+                "unit",
+            ],
+        )
+        .sum()
+    )
+
+    return tpes
+
+
 def load_processed_power_capacity(path_to_processed_data, years):
     power = {}
 
@@ -562,3 +754,20 @@ def get_processed_data(path_to_processed_data, years):
 
 def count_spores_per_cluster(clustered_data):
     return clustered_data.reset_index().groupby("cluster")["spore"].nunique()
+
+
+def describe_scenario(power_capacity):
+    return (
+        power_capacity.groupby(["cluster", "technology"])
+        .agg(["min", "mean", "median", "max"])
+        .reset_index()
+    )
+
+
+def find_feasible_scenarios(spores, power_capacity):
+    scenarios = power_capacity.index.unique(level="cluster")
+    feasible_scenarios = power_capacity.loc[:, :, spores, :].index.unique(
+        level="cluster"
+    )
+    infeasible_scenarios = scenarios.difference(feasible_scenarios)
+    return list(feasible_scenarios), list(infeasible_scenarios)
