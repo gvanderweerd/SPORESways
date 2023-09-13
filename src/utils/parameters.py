@@ -172,6 +172,16 @@ TECH_MAPPING_EMBER = {
     "Solar": "PV",
 }
 
+# Metrics
+RENAME_METRICS = {
+    "transport_electrification": "Transport electrification",
+    "heat_electrification": "Heat electrification",
+    "electricity_production_gini": "Electricity production gini",
+    "storage_discharge_capacity": "Storage discharge capacity",
+    "average_national_import": "Avg. national import",
+    "biofuel_utilisation": "Biofuel utilisation",
+}
+
 # Locations
 REGION_MAPPING = {
     "ALB": "Albania",
