@@ -69,13 +69,19 @@ def add_battery_and_grid_capacity_to_power_capacity(
             grid_data.get(year).groupby(["importing_region", "spore"]).sum()
         )
         total_grid_capacity.index = pd.MultiIndex.from_tuples(
-            [(index[0], "Grid", index[1]) for index in total_grid_capacity.index]
+            [
+                (index[0], "International transmission", index[1])
+                for index in total_grid_capacity.index
+            ]
         ).set_names(["region", "technology", "spore"])
 
         # Calculate continental capacity
         total_grid_capacity_eu = total_grid_capacity.groupby("spore").sum()
         total_grid_capacity_eu.index = pd.MultiIndex.from_tuples(
-            [("Europe", "Grid", spore) for spore in total_grid_capacity_eu.index]
+            [
+                ("Europe", "International transmission", spore)
+                for spore in total_grid_capacity_eu.index
+            ]
         ).set_names(["region", "technology", "spore"])
 
         # Add grid and battery capacity to power capacity data
@@ -89,6 +95,145 @@ def add_battery_and_grid_capacity_to_power_capacity(
         ).sort_index(level=["region", "technology", "spore"])
 
     return power_data
+
+
+def plot_primary_energy_distribution(primary_energy_data, region="Europe"):
+    def prepare_primary_energy_data_for_distribution_plot(
+        primary_energy_data, region="Europe"
+    ):
+        primary_energy_data_2030 = primary_energy_data.get("2030").copy()
+        primary_energy_data_2050 = primary_energy_data.get("2050").copy()
+
+        # Concatenate 2030 and 2050
+        primary_energy_data_2030.index = pd.MultiIndex.from_tuples(
+            [
+                ("2030", idx[0], idx[1], idx[2])
+                for idx in primary_energy_data_2030.index
+            ],
+            names=["year", "region", "carriers", "spore"],
+        )
+        primary_energy_data_2050.index = pd.MultiIndex.from_tuples(
+            [
+                ("2050", idx[0], idx[1], idx[2])
+                for idx in primary_energy_data_2050.index
+            ],
+            names=["year", "region", "carriers", "spore"],
+        )
+        primary_energy_data = pd.concat(
+            [primary_energy_data_2030, primary_energy_data_2050]
+        )
+
+        # Filter on region
+        primary_energy_data = primary_energy_data.xs(
+            region, level="region", drop_level=False
+        )
+        if region == "Europe":
+            primary_energy_data = primary_energy_data.drop(
+                [
+                    "Natural gas, carbon-neutral net imports",
+                    "Oil, carbon-neutral net imports",
+                    "Net electricity import",
+                ],
+                level="carriers",
+            )
+        else:
+            primary_energy_data = primary_energy_data.rename(
+                index={
+                    "Natural gas, carbon-neutral net imports": "Net natural gas import",
+                    "Oil, carbon-neutral net imports": "Net oil import",
+                }
+            )
+            # TODO: add all import/export carriers to one import export group?
+
+        # Calc nuclear heat input to account for energy loss (as electricity is output)
+        mask = (
+            primary_energy_data.index.get_level_values("carriers")
+            == "Nuclear electricity"
+        )
+        primary_energy_data[mask] *= NUCLEAR_HEAT_MULTIPLIER
+        primary_energy_data = primary_energy_data.rename(
+            index={"Nuclear electricity": "Nuclear heat"}
+        )
+
+        # Calculate ranges
+        primary_energy_ranges = (
+            primary_energy_data.groupby(level=["region", "carriers"])
+            .agg(["min", "max"])
+            .droplevel("region")
+        )
+
+        # primary_energy_normalised capacity
+        primary_energy_normalised = (
+            primary_energy_data.groupby(level=["region", "carriers"])
+            .transform(normalise_to_max)
+            .reset_index()
+        )
+
+        return primary_energy_normalised, primary_energy_ranges
+
+    def plot_distribution(data, ax):
+        sns.stripplot(
+            ax=ax,
+            data=data,
+            x="carriers",
+            y="primary_energy_supply_twh",
+            hue="year",
+            hue_order=["2030", "2050"],
+            jitter=True,
+            dodge=True,
+            # palette=[sns.color_palette("bright")[-3], sns.color_palette("bright")[-3]],
+            marker="o",
+            s=3,
+            alpha=0.5,
+        )
+
+    def add_ranges_to_xticks(ranges, ax):
+        xticklabels = []
+
+        for ticklabel in ax.get_xticklabels():
+            _carrier = ticklabel.get_text()
+            # Format x-axis labels
+            if _carrier in ["Net natural gas import", "Net oil import"]:
+                energy_range = ranges.loc[_carrier].round(1).astype(float)
+                if energy_range["max"] == -0.0:
+                    energy_range["max"] = 0.0
+            else:
+                energy_range = ranges.loc[_carrier].round(0).astype(int)
+
+            xticklabels.append(
+                f"{_carrier}\n({energy_range['min']} - {energy_range['max']}) twh"
+            )
+        ax.set_xticklabels(xticklabels, fontsize=9)
+
+    # Prepare data
+    (
+        primary_energy_normalised,
+        primary_energy_ranges,
+    ) = prepare_primary_energy_data_for_distribution_plot(primary_energy_data, region)
+
+    # Plot figure
+    fig, ax = plt.subplots(figsize=(1.5 * FIGWIDTH, 0.75 * FIGWIDTH * 9 / 16))
+    plot_distribution(primary_energy_normalised, ax)
+
+    carrier_labels = list(primary_energy_normalised["carriers"].unique())
+    # Remove top and right spines
+    remove_top_and_right_spines(ax)
+    # Format y-axis
+    ax.set_ylabel(
+        "Normalised primary energy supply",
+        weight="bold",
+    )
+    # Format x-axis
+    ax.set_xlabel("")
+    ax.set_xticks(range(len(carrier_labels)))
+    ax.set_xticklabels(carrier_labels, fontsize=10)
+    add_ranges_to_xticks(primary_energy_ranges, ax)
+    # Set title
+    ax.set_title(f"{region}", weight="bold")
+
+    if primary_energy_normalised["primary_energy_supply_twh"].min() < 0:
+        ax.axhline(0, color="black", linewidth=0.5, linestyle="--")
+    #     ax.spines["bottom"].set_position("zero")
 
 
 def plot_power_capacity_distribution(power_data, region="Europe"):
@@ -158,7 +303,7 @@ def plot_power_capacity_distribution(power_data, region="Europe"):
         power_data, region
     )
     # Plot figure
-    fig, ax = plt.subplots(figsize=(2.5 * FIGWIDTH, 1.25 * FIGWIDTH * 9 / 16))
+    fig, ax = plt.subplots(figsize=(1.5 * FIGWIDTH, 0.75 * FIGWIDTH * 9 / 16))
     plot_distribution(capacity_normalised, ax)
     # Remove top and right spines
     remove_top_and_right_spines(ax)
@@ -175,6 +320,7 @@ def plot_power_capacity_distribution(power_data, region="Europe"):
     add_ranges_to_xticks(capacity_ranges, ax)
     # Set title
     ax.set_title(f"{region}", weight="bold")
+    ax.legend(loc="upper left")
 
 
 def plot_metrics_distribution(metrics_data, region="Europe"):
@@ -249,7 +395,7 @@ def plot_metrics_distribution(metrics_data, region="Europe"):
         .to_dict()
     )
     # Plot figure
-    fig, ax = plt.subplots(figsize=(2.5 * FIGWIDTH, 1.25 * FIGWIDTH * 9 / 16))
+    fig, ax = plt.subplots(figsize=(1.5 * FIGWIDTH, 0.75 * FIGWIDTH * 9 / 16))
     plot_distribution(metrics_normalised, ax)
     # Remove top and right spines
     remove_top_and_right_spines(ax)
@@ -268,7 +414,7 @@ def plot_metrics_distribution(metrics_data, region="Europe"):
     ax.set_title(f"{region}", weight="bold")
 
 
-def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year, ax):
+def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year):
     def prepaare_data_for_correlation_plot(power_data, metrics_data):
         power_data = power_data.get(year).copy()
         metrics_data = metrics_data.get(year).copy()
@@ -282,7 +428,7 @@ def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year, ax):
 
         df_metrics = metrics_data
         df_metrics.index = pd.MultiIndex.from_tuples(
-            [("", metric, spore) for (spore, metric, unit) in metrics_data.index]
+            [("Europe", metric, spore) for (spore, metric, unit) in metrics_data.index]
         ).set_names(["region", "metric", "spore"])
         df_metrics = df_metrics.rename(index=RENAME_METRICS).unstack(
             ["region", "metric"]
@@ -386,7 +532,7 @@ def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year, ax):
         for i in range(len(country_changes_y) - 1):
             y_pos = (country_changes_y[i] + country_changes_y[i + 1]) / 2
             ax.text(
-                -12,
+                -22,
                 y_pos,
                 corr.index[country_changes_y[i]][0],
                 rotation=90,
@@ -399,7 +545,7 @@ def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year, ax):
             x_pos = (country_changes_x[i] + country_changes_x[i + 1]) / 2
             ax.text(
                 x_pos,
-                -12,
+                -22,
                 corr.columns[country_changes_y[i]][0],
                 horizontalalignment="center",
                 color="black",
@@ -409,6 +555,13 @@ def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year, ax):
         ax.xaxis.set_ticks_position("none")
         ax.yaxis.set_ticks_position("none")
         plt.tight_layout()
+
+    # Generate figure
+    ax = {}
+    fig = plt.subplots(figsize=(1.2 * FIGWIDTH, 1.2 * FIGWIDTH))
+    gs = gridspec.GridSpec(3, 2, height_ratios=[1, 8, 1], width_ratios=[39, 1])
+    ax["heatmap"] = plt.subplot(gs[0:, 0], frameon=True)
+    ax["colorbar"] = plt.subplot(gs[1, 1], frameon=False)
 
     # Prepare data
     corr = prepaare_data_for_correlation_plot(power_data, metrics_data)
@@ -429,6 +582,7 @@ def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year, ax):
 if __name__ == "__main__":
     years = ["2030", "2050"]
     path_to_processed_data = os.path.join(os.getcwd(), "..", "data", "processed")
+    region_of_interest = "Germany"
     regions_to_analyse = [
         "France",
         "Germany",
@@ -468,14 +622,13 @@ if __name__ == "__main__":
     """
     # TPES per source
     # plot_distribution_base(primary_energy_supply)
-
+    plot_primary_energy_distribution(primary_energy_supply, region=region_of_interest)
     # TPES (for top 5 countries)
 
     # POWER
-    plot_power_capacity_distribution(power_capacity, region="Europe")
+    plot_power_capacity_distribution(power_capacity, region=region_of_interest)
     # METRICS
     plot_metrics_distribution(paper_metrics)
-    plt.show()
 
     # analyse_energy_consumption_or_supply_per_country(primary_energy_supply)
     # plt.ylabel("Total Primary Energy Supply [TWh]")
@@ -483,10 +636,6 @@ if __name__ == "__main__":
     """
     3. TRADE-OFFS: CORRELATION BETWEEN POWER CAPACITY & SYSTEM METRICS
     """
-    ax = {}
-    fig = plt.subplots(figsize=(1.2 * FIGWIDTH, 1.2 * FIGWIDTH))
-    gs = gridspec.GridSpec(3, 2, height_ratios=[1, 8, 1], width_ratios=[39, 1])
-    ax["heatmap"] = plt.subplot(gs[0:, 0], frameon=True)
-    ax["colorbar"] = plt.subplot(gs[1, 1], frameon=False)
-
-    plot_trade_offs_as_correlation_heatmap(power_capacity, paper_metrics, "2030", ax)
+    plot_trade_offs_as_correlation_heatmap(power_capacity, paper_metrics, "2030")
+    plot_trade_offs_as_correlation_heatmap(power_capacity, paper_metrics, "2050")
+    plt.show()
