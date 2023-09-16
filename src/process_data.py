@@ -86,12 +86,12 @@ def save_processed_data(spores_data, path_to_processed_data, save=False):
             save_to_csv=save,
         )
 
-        # final_consumption = process_final_consumption(
-        #     spores_data=spores_data.get(year),
-        #     result_path=path_to_result,
-        #     save_to_csv=save,
-        # )
-        #
+        final_consumption = process_final_consumption(
+            spores_data=spores_data.get(year),
+            result_path=path_to_result,
+            save_to_csv=save,
+        )
+
         tpes = process_primary_energy_supply(
             spores_data=spores_data.get(year),
             result_path=path_to_result,
@@ -145,7 +145,7 @@ if __name__ == "__main__":
                 ),
                 path_to_result=os.path.join(
                     os.getcwd(),
-                    "../data/raw/euro-spores-results-{year}/aggregated/data",
+                    f"../data/raw/euro-spores-results-{year}/aggregated/data",
                 ),
             )
         # FIXME: we need to manually change the title name of the grid capacity from "grid_transfer_capacity.csv" to "grid_transfer_capacity.csv"

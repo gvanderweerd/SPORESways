@@ -28,6 +28,7 @@ ENERGY_PRODUCERS = {
     "roof_mounted_pv": "Renewable electricity",
     "wind_offshore": "Renewable electricity",
     "wind_onshore": "Renewable electricity",
+    "coal_supply": "Coal",
 }
 
 # Heat sector
@@ -60,18 +61,6 @@ STORAGE_DISCHARGE_TECHS = [
 ]
 
 
-# FIXME: base these numbers on research
-ELECTRICITY_PRODUCERS_LIFE = {
-    "PV": 25,
-    "Offshore wind": 20,
-    "Onshore wind": 25,
-    "CCGT": 30,
-    "CHP": 30,
-    "Hydro": 30,
-    "Nuclear": 30,
-    "Bio to liquids": 30,
-}
-
 GRID_TECHS_SPORES = {"ac_transmission": "Power grid", "dc_transmission": "Power grid"}
 
 ELECTRICITY_PRODUCERS_SPORES = {
@@ -80,14 +69,15 @@ ELECTRICITY_PRODUCERS_SPORES = {
     "wind_offshore": "Offshore wind",
     "wind_onshore": "Onshore wind",
     "coal_power_plant": "Coal",
-    "ccgt": "CCGT",
-    "chp_biofuel_extraction": "CHP",
-    "chp_methane_extraction": "CHP",
-    "chp_wte_back_pressure": "CHP",
-    "chp_hydrogen": "CHP",
+    "ccgt": "Gas turbines",
+    "chp_biofuel_extraction": "Gas turbines",
+    "chp_methane_extraction": "Gas turbines",
+    "chp_wte_back_pressure": "Gas turbines",
+    "chp_hydrogen": "Gas turbines",
     "hydro_reservoir": "Hydro",
     "hydro_run_of_river": "Hydro",
     "nuclear": "Nuclear",
+    "battery": "Battery",
 }
 ELECTRICITY_PRODUCERS_IRENASTAT = {
     "Solar photovoltaic": "PV",
