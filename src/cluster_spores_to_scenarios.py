@@ -91,7 +91,6 @@ def find_n_clusters(
     print(
         f"Optimal number of clusters found by Silhouette method: {silhouette_optimal_clusters}"
     )
-    print(f"Optimal number of clusters found by Elbow method: {elbow_optimal_clusters}")
 
     # Plot figures for selecting optimal number of clusters
     if plot:
@@ -124,7 +123,7 @@ def prepare_data_for_clustering(data_series):
 
 def save_cluster_map(cluster_map, path_to_directory, spatial_granularity):
     file_path = os.path.join(
-        path_to_directory, f"spore_to_scenario_silhouette_{spatial_granularity}.json"
+        path_to_directory, f"spore_to_scenario_{spatial_granularity}.json"
     )
     with open(file_path, "w") as file:
         json.dump(cluster_map, file)
@@ -137,7 +136,7 @@ if __name__ == "__main__":
     # Choose scenario_number to analyse
     focus_scenario = 0
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "Spain"
+    spatial_resolution = "Germany"
     # Set to True if you want to manually force the clustering algorithm to find a number of clusters
     manually_set_n_clusters = False
 
@@ -162,10 +161,8 @@ if __name__ == "__main__":
     # Read data
     path_to_processed_data = os.path.join(os.getcwd(), "..", "data", "processed")
     years = ["2030", "2050"]
-    # years = find_years(path_to_processed_data=path_to_processed_data)
-    power_capacity, paper_metrics = get_processed_data(
-        path_to_processed_data=path_to_processed_data, years=years
-    )
+    power_capacity = load_processed_power_capacity(path_to_processed_data, years)
+    paper_metrics = load_processed_paper_metrics(path_to_processed_data, years)
 
     # Filter data based on spatial resolution
     for year in years:
@@ -184,9 +181,9 @@ if __name__ == "__main__":
         n_clusters = find_n_clusters(
             data_series=power_capacity.get(year),
             min_clusters=2,
-            max_clusters=10,
+            max_clusters=15,
             method="silhouette",
-            plot=True,
+            plot=False,
         )
         plt.show()
 

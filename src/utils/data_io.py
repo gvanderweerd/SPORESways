@@ -530,65 +530,6 @@ def load_processed_grid_transfer_capacity(path_to_processed_data, years):
     return grid
 
 
-def get_processed_data(path_to_processed_data, years):
-    power = {}
-    metrics = {}
-
-    for year in years:
-        # Get power capacity
-        power[year] = pd.read_csv(
-            os.path.join(path_to_processed_data, year, "power_capacity.csv"),
-            index_col=["region", "technology", "spore"],
-        ).squeeze()
-        # power_capacity[year].name = os.path.basename(file_path)
-
-        # Paper metrics
-        metrics[year] = pd.read_csv(
-            os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
-            index_col=["spore", "metric", "unit"],
-        ).squeeze()
-
-    return power, metrics
-
-
-# def get_processed_data(path_to_processed_data,"):
-#     years = find_years(path_to_processed_data)
-#
-#     power_capacity = {}
-#     paper_metrics = {}
-#
-#     for year in years:
-#         # Get power capacity
-#         power_capacity[year] = pd.read_csv(
-#             os.path.join(path_to_processed_data, year, "power_capacity.csv"),
-#             index_col=["region", "technology", "spore"],
-#         ).squeeze()
-#         # power_capacity[year].name = os.path.basename(file_path)
-#
-#         # Filter power capacity on the right spatial resolution
-#         # if resolution == "continental":
-#         #     power_capacity[year] = power_capacity.get(year).xs(
-#         #         "Europe", level="region", drop_level=False
-#         #     )
-#         if resolution == "national":
-#             power_capacity[year] = power_capacity.get(year).drop(
-#                 index="Europe", level="region"
-#             )
-#         else:
-#             power_capacity[year] = power_capacity.get(year).xs(
-#                 resolution, level="region", drop_level=False
-#             )
-#
-#         # Paper metrics
-#         paper_metrics[year] = pd.read_csv(
-#             os.path.join(path_to_processed_data, year, "paper_metrics.csv"),
-#             index_col=["spore", "metric", "unit"],
-#         ).squeeze()
-#
-#     return power_capacity, paper_metrics
-#
-
-
 def count_spores_per_cluster(clustered_data):
     return clustered_data.reset_index().groupby("cluster")["spore"].nunique()
 
