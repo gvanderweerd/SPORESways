@@ -238,7 +238,9 @@ def process_primary_energy_supply(spores_data):
 
 def add_internation_transmission_to_power_capacity(power_data, grid_data):
     # Compute international grid capacity per country
-    international_transmission = grid_data.groupby(["importing_region", "spore"]).sum()
+    international_transmission = (
+        grid_data.groupby(["importing_region", "spore"]).sum() * 1000
+    )
     international_transmission.index = pd.MultiIndex.from_tuples(
         [
             (index[0], "International transmission", index[1])
@@ -269,6 +271,17 @@ def add_internation_transmission_to_power_capacity(power_data, grid_data):
     ).sort_index(level=["region", "technology", "spore"])
 
 
+def add_battery_storage_capacity_to_power_capacity(power_data, storage_data):
+    battery_capacity_gwh = (
+        storage_data.xs("battery", level="technology", drop_level=False) * 1000
+    ).rename(index={"battery": "Battery"})
+    power = pd.concat([power_data, battery_capacity_gwh]).sort_index(
+        level=["region", "technology", "spore"]
+    )
+    power.name = "capacity_gw"
+    return power
+
+
 def save_processed_data(spores_data, path_to_processed_data, save=False):
     for year in spores_data.keys():
         # If the directory data/processed/{year} does not exist make directory
@@ -292,6 +305,7 @@ def save_processed_data(spores_data, path_to_processed_data, save=False):
         power = add_internation_transmission_to_power_capacity(
             power, grid_transfer_capacity
         )
+        power = add_battery_storage_capacity_to_power_capacity(power, storage_capacity)
 
         if save:
             paper_metrics.to_csv(os.path.join(path_to_result, "paper_metrics.csv"))
@@ -314,7 +328,7 @@ if __name__ == "__main__":
     years = ["2030", "2050"]
 
     # Set to True if you want processed data to be saved as new csv files
-    save = False
+    save = True
 
     # Set this to a list of years (like ["2030"]) if the spores results are provided in different folders for different categories of spores results
     # Set this to None if spores results are provided in one folder containing all spores

@@ -29,10 +29,12 @@ POWER_TECH_COLORS = {
     "All other SPORES": "#b9b9b9",
     "Nuclear": "#cc0000",
     "nuclear": "#cc0000",
+    "Battery": "#8fce00",
     "CCGT": "#8fce00",
     "ccgt": "#8fce00",
-    "CHP": "#ce7e00",
-    "chp": "#ce7e00",
+    # "CHP": "#ce7e00",
+    # "chp": "#ce7e00",
+    "Gas turbines": "#ce7e00",
     "PV": "#ffd966",
     "pv": "#ffd966",
     "Onshore wind": "#674ea7",
@@ -44,6 +46,7 @@ POWER_TECH_COLORS = {
     "hydro": "#2986cc",
     "Coal": "#000000",  # Black = #000000, Grey = #808080
     "coal": "#000000",
+    "International transmission": "#008080",
 }
 
 
@@ -59,12 +62,14 @@ metric_plot_order = {
     "ev_flexibility": 7,
 }
 tech_plot_names = {
-    "CCGT": "CCGT",
-    "CHP": "CCGT",
-    "Coal": "CCGT",
+    "Battery": "Battery",
+    "Gas turbines": "Gas turbines",
+    "Coal": "Coal",
+    "Hydro": "Hydro",
+    "International transmission": "International\ntransmission",
     "Offshore wind": "Offshore\nwind",
     "Onshore wind": "Onshore\nwind",
-    "PV": "CCGT",
+    "PV": "PV",
     "Nuclear": "Nuclear",
 }
 metric_plot_names = {
@@ -77,6 +82,17 @@ metric_plot_names = {
     "heat_electrification": "Heat\nelectrification",
     "biofuel_utilisation": "Biofuel\nutilisation",
     "ev_flexibility": "EV as flexibility",
+}
+primary_energy_plot_names = {
+    "Biofuels": "Biofuels",
+    "Coal": "Coal",
+    "Natural gas": "Natural gas",
+    "Oil": "Oil",
+    "Waste": "Waste",
+    "Renewable electricity": "Renewable electricity",
+    "Net natural gas import": "Net natural\ngas import",
+    "Net oil import": "Net oil\nimport",
+    "Net electricity import": "Net electricity\nimport",
 }
 metric_range_formatting = {
     "curtailment": lambda x: x.round(0).astype(int),
@@ -115,7 +131,7 @@ class HandlerNumber(HandlerBase):
 
 
 def normalise_to_max(x):
-    max_value = x.max()
+    max_value = abs(x).max()
     return x / max_value
 
 
@@ -162,6 +178,50 @@ def remove_top_and_right_spines(ax):
     # ax.yaxis.set_ticks_posittion("left")
 
 
+def plot_scenario_capacity_stacked_barchart2(
+    power_capacity,
+    n_spores_per_cluster,
+    year,
+    ax,
+    spores_amount_y_offset=20,
+    greyed_out_scenarios=[],
+):
+    scenario_description = describe_scenario(power_capacity)
+    scenario_values = scenario_description.loc[
+        :, ["cluster", "technology", "mean"]
+    ].pivot_table(index="cluster", columns="technology")["mean"]
+
+    # Plot figure
+    scenario_values.plot(ax=ax, kind="bar", stacked=True, color=POWER_TECH_COLORS)
+    ax.set_xlabel(f"{year}", weight="bold")
+    ax.set_ylabel("Average installed capacity [GW]", weight="bold")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+
+    # Annotate number of SPORE in each cluster on top of each bar
+    for cluster_number, spores_count in enumerate(n_spores_per_cluster):
+        ax.text(
+            cluster_number,
+            # FIXME: Scale this to the max total capacity that exist in the figure
+            scenario_values.sum(axis=1)[cluster_number] + spores_amount_y_offset,
+            f"{spores_count}",
+            va="center",
+            ha="center",
+        )
+
+    # Grey out bars if needed
+    techs = scenario_values.columns.to_list()
+    for tech_index, bar_container in enumerate(ax.containers):
+        tech = techs[tech_index]
+        for cluster_index, bar in enumerate(bar_container):
+            if cluster_index in greyed_out_scenarios:
+                bar.set_facecolor(POWER_TECH_COLORS_GREYED[tech])
+
+    # Remove legend
+    ax.get_legend().remove()
+    # Remove top and right spines
+    remove_top_and_right_spines(ax)
+
+
 def plot_scenario_capacity_stacked_barchart(
     scenario_values,
     n_spores_per_cluster,
@@ -203,7 +263,7 @@ def plot_scenario_capacity_stacked_barchart(
     remove_top_and_right_spines(ax)
 
 
-def plot_metrics_distribution(ax, metrics, year, focus_cluster=None):
+def plot_metrics_distribution(ax, metrics, year, focus_cluster=None, plot_boxes=False):
     # Calculate metric ranges and get units
     metric_ranges = metrics.groupby(level="metric").agg(["min", "max"])
     metric_units = (
@@ -285,6 +345,124 @@ def plot_metrics_distribution(ax, metrics, year, focus_cluster=None):
         _metric = ticklabel.get_text()
 
         # Plot boxes
+        if plot_boxes:
+            xmin = _x - 0.2
+            xmax = _x + 0.2
+            height = max_scenario.loc[_metric] - min_scenario.loc[_metric]
+            height += 0.018
+            ax.add_patch(
+                mpl.patches.Rectangle(
+                    xy=(xmin, min_scenario.loc[_metric] - 0.009),
+                    height=height,
+                    width=(xmax - xmin),
+                    fc="None",
+                    ec=metric_colors[_metric],
+                    linestyle="--",
+                    lw=0.75,
+                    zorder=10,
+                ),
+            )
+            _x += 1
+
+        # Format x-axis labels
+        metric_range = metric_ranges.apply(metric_range_formatting[_metric]).loc[
+            _metric
+        ]
+        _unit = metric_units.get(_metric)
+        if _unit == "percentage":
+            _unit = " %"
+        elif _unit == "fraction":
+            _unit = ""
+        else:
+            _unit = " " + _unit
+        xticklabels.append(
+            f"{metric_plot_names[_metric]}\n({metric_range['min']} - {metric_range['max']}){_unit}"
+        )
+    ax.set_xticklabels(xticklabels, fontsize=9)
+
+    # FIXME: get unique spores only
+    # print(spores_to_plot_in_color)
+
+    # Set figure title
+    # n_spores_per_cluster = count_spores_per_cluster(metrics)
+    # ax.set_title(
+    #     f"Scenario {focus_cluster} ({year}): {n_spores_per_cluster[focus_cluster]} SPORES"
+    # )
+
+    # Remove top and right spines
+    remove_top_and_right_spines(ax)
+
+
+def plot_metrics_distribution_based_on_spores(ax, metrics, focus_spores=None):
+    # Calculate metric ranges and get units
+    metric_ranges = metrics.groupby(level="metric").agg(["min", "max"])
+    metric_units = (
+        metrics.index.to_frame(index=False)
+        .drop_duplicates(subset="metric")
+        .set_index("metric")["unit"]
+        .to_dict()
+    )
+
+    # Normalise metrics
+    metrics_normalised = (
+        metrics.groupby(["metric"]).transform(normalise_to_max).reset_index()
+    )
+
+    # Calculate min, max for focus cluster (for plotting boxes)
+    max_scenario = (
+        metrics_normalised.loc[
+            (metrics_normalised.spore.isin(focus_spores)), ["paper_metrics", "metric"]
+        ]
+        .groupby("metric")
+        .max()["paper_metrics"]
+    )
+    min_scenario = (
+        metrics_normalised.loc[
+            (metrics_normalised.spore.isin(focus_spores)), ["paper_metrics", "metric"]
+        ]
+        .groupby("metric")
+        .min()["paper_metrics"]
+    )
+
+    # Get colors dictionary for metric
+    metric_labels = list(metrics.index.unique(level="metric"))
+    metric_colors = get_color_dict2(metric_labels)
+
+    #
+    sns.stripplot(
+        ax=ax,
+        data=metrics_normalised[~metrics_normalised.spore.isin(focus_spores)],
+        x="metric",
+        y="paper_metrics",
+        marker="o",
+        color=metric_colors["rest_color"],
+        alpha=0.5,
+        s=3,
+    )
+    # Color focus scenario
+    if focus_spores is not None:
+        sns.stripplot(
+            data=metrics_normalised[metrics_normalised.spore.isin(focus_spores)],
+            x="metric",
+            y="paper_metrics",
+            alpha=0.5,
+            ax=ax,
+            marker="o",
+            palette=metric_colors,
+            s=3,
+        )
+    # Format y-axis
+    ax.set_ylabel("Normalised metric score", weight="bold")
+    # Format x-axis
+    ax.set_xlabel("")
+    ax.set_xticks(range(len(metric_labels)))
+    ax.set_xticklabels(metric_labels, fontsize=10)
+    xticklabels = []
+    _x = 0
+    for ticklabel in ax.get_xticklabels():
+        _metric = ticklabel.get_text()
+
+        # Plot boxes
         xmin = _x - 0.2
         xmax = _x + 0.2
         height = max_scenario.loc[_metric] - min_scenario.loc[_metric]
@@ -319,15 +497,6 @@ def plot_metrics_distribution(ax, metrics, year, focus_cluster=None):
         )
     ax.set_xticklabels(xticklabels, fontsize=9)
 
-    # FIXME: get unique spores only
-    # print(spores_to_plot_in_color)
-
-    # Set figure title
-    # n_spores_per_cluster = count_spores_per_cluster(metrics)
-    # ax.set_title(
-    #     f"Scenario {focus_cluster} ({year}): {n_spores_per_cluster[focus_cluster]} SPORES"
-    # )
-
     # Remove top and right spines
     remove_top_and_right_spines(ax)
 
@@ -346,7 +515,8 @@ def plot_capacity_distribution(ax, capacity, year, resolution, focus_cluster=Non
         .transform(normalise_to_max)
         .reset_index()
     )
-
+    print(capacity)
+    print(capacity_normalised)
     # Calculate min, max for focus cluster (for plotting boxes)
     max_scenario = (
         capacity_normalised.loc[
@@ -441,6 +611,154 @@ def plot_capacity_distribution(ax, capacity, year, resolution, focus_cluster=Non
         capacity_range = capacity_ranges.loc[_tech].round(0).astype(int)
         xticklabels.append(
             f"{_tech}\n({capacity_range['min']} - {capacity_range['max']}) gw"
+        )
+    ax.set_xticklabels(xticklabels, fontsize=9)
+
+    # Remove top and right spines
+    remove_top_and_right_spines(ax)
+
+
+def plot_capacity_distribution_based_on_spores(
+    ax, capacity, focus_spores=None, color=None
+):
+    # Calculate metric ranges
+    capacity_ranges = (
+        capacity.groupby(level=["region", "technology"])
+        .agg(["min", "max"])
+        .droplevel("region")
+    )
+
+    # Normalise capacity
+    capacity_normalised = (
+        capacity.groupby(level=["region", "technology"])
+        .transform(normalise_to_max)
+        .reset_index()
+    )
+
+    # Calculate min, max for focus cluster (for plotting boxes)
+    max_scenario = (
+        capacity_normalised.loc[
+            (capacity_normalised.spore.isin(focus_spores)),
+            ["capacity_gw", "technology"],
+        ]
+        .groupby("technology")
+        .max()["capacity_gw"]
+    )
+    min_scenario = (
+        capacity_normalised.loc[
+            (capacity_normalised.spore.isin(focus_spores)),
+            ["capacity_gw", "technology"],
+        ]
+        .groupby("technology")
+        .min()["capacity_gw"]
+    )
+
+    # Get colors dictionary for metric
+    tech_labels = list(capacity.index.unique(level="technology"))
+    cluster_labels = list(capacity.index.unique(level="cluster"))
+
+    cluster_colors = get_color_dict2(cluster_labels)
+
+    # Get SPORES to plot in color (SPORES that belong to a specific cluster)
+    # spores_to_plot_in_color = metrics.xs(focus_cluster, level="cluster").index.unique(level="spore")
+    # spores_to_plot_in_color = capacity_normalised[
+    #     (capacity_normalised.cluster == focus_cluster)
+    # ].spore.values
+
+    #
+    sns.stripplot(
+        ax=ax,
+        data=capacity_normalised[~capacity_normalised.spore.isin(focus_spores)],
+        x="technology",
+        y="capacity_gw",
+        marker="o",
+        color=cluster_colors["rest_color"],
+        alpha=0.5,
+        s=3,
+    )
+    # Color focus scenario
+    if focus_spores is not None:
+        sns.stripplot(
+            data=capacity_normalised[capacity_normalised.spore.isin(focus_spores)],
+            x="technology",
+            y="capacity_gw",
+            alpha=0.5,
+            ax=ax,
+            marker="o",
+            palette=POWER_TECH_COLORS,
+            s=3,
+        )
+
+    # Format y-axis
+    ax.set_ylabel("Normalised installed capacity", weight="bold")
+
+    # Format x-axis
+    ax.set_xlabel("")
+    ax.set_xticks(range(len(tech_labels)))
+    ax.set_xticklabels(tech_labels, fontsize=10)
+    xticklabels = []
+    _x = 0
+
+    for ticklabel in ax.get_xticklabels():
+        _tech = ticklabel.get_text()
+
+        # Plot boxes
+        xmin = _x - 0.2
+        xmax = _x + 0.2
+        height = max_scenario.loc[_tech] - min_scenario.loc[_tech]
+        height += 0.018
+        ax.add_patch(
+            mpl.patches.Rectangle(
+                xy=(xmin, min_scenario.loc[_tech] - 0.009),
+                height=height,
+                width=(xmax - xmin),
+                fc="None",
+                ec=POWER_TECH_COLORS[_tech],
+                linestyle="--",
+                lw=0.75,
+                zorder=10,
+            ),
+        )
+        _x += 1
+
+        # Format x-axis labels
+        capacity_range = capacity_ranges.loc[_tech].round(0).astype(int)
+        xticklabels.append(
+            f"{_tech}\n({capacity_range['min']} - {capacity_range['max']})\ngw"
+        )
+    ax.set_xticklabels(xticklabels, fontsize=9)
+
+    # Remove top and right spines
+    remove_top_and_right_spines(ax)
+
+
+def format_axis_for_capacity_distibution_plot(ax, capacity):
+    tech_labels = list(capacity.index.unique(level="technology"))
+
+    # Calculate metric ranges
+    capacity_ranges = (
+        capacity.groupby(level=["region", "technology"])
+        .agg(["min", "max"])
+        .droplevel("region")
+    )
+
+    # Format y-axis
+    ax.set_ylabel("Normalised installed capacity", weight="bold")
+
+    # Format x-axis
+    ax.set_xlabel("")
+    ax.set_xticks(range(len(tech_labels)))
+    ax.set_xticklabels(tech_labels, fontsize=10)
+    xticklabels = []
+    _x = 0
+
+    for ticklabel in ax.get_xticklabels():
+        _tech = ticklabel.get_text()
+
+        # Format x-axis labels
+        capacity_range = capacity_ranges.loc[_tech].round(0).astype(int)
+        xticklabels.append(
+            f"{_tech}\n({capacity_range['min']} - {capacity_range['max']})\ngw"
         )
     ax.set_xticklabels(xticklabels, fontsize=9)
 
@@ -629,7 +947,7 @@ def plot_scenario_analysis_barchart(
 
         plt.tight_layout(pad=1)
         plt.savefig(
-            f"../figures/appendices/scenario_analysis/barchart_{resolution}.png",
+            f"../figures/appendices/scenario_analysis/barchart_{resolution}_silhouette.png",
             bbox_inches="tight",
             dpi=120,
         )
@@ -653,7 +971,7 @@ def plot_capacity_bar(
         scenario_description.get(year)
         .loc[
             scenario_description.get(year)["cluster"] == focus_scenario,
-            ["cluster", "technology", "mean"],
+            ["cluster", "technology", value_to_plot],
         ]
         .pivot_table(index="cluster", columns="technology")[value_to_plot]
     )
@@ -703,14 +1021,6 @@ def plot_scenario_analysis(
             height_ratios=[2, 18],
         )
         _row = 0
-        alpha_idx = 0
-
-        # for row in range(n_rows):
-        #     for col in range(n_cols):
-        #         ax = fig.add_subplot(gs[row, col])
-        #         ax.set_xticks([])
-        #         ax.set_yticks([])
-        #         ax.text(0.5, 0.5, f"R{row}C{col}", ha="center", va="center", fontsize=10)
 
         # Plot figure title
         ax["title"] = plt.subplot(gs[_row, :], frameon=False)
@@ -951,7 +1261,6 @@ def plot_grid_capacity_map(
 
 def plot_scenario_analysis_v2(
     power_capacity,
-    grid_capacity,
     paper_metrics,
     spatial_resolution,
     scenario_description,
@@ -960,15 +1269,15 @@ def plot_scenario_analysis_v2(
     n_spores_per_cluster_eu,
     scenario_number,
     year,
-    max_link_capacity,
+    value_to_plot="median",
 ):
     # FIXME: this data transformation is now done on multiple places --> do this in a more efficient way on a logical place
     # See: plot_scenario_analysis_barchart
     # See: plot_capacity_bar
     scenario_values_eu = (
         scenario_description_eu.get(year)
-        .loc[:, ["cluster", "technology", "mean"]]
-        .pivot_table(index="cluster", columns="technology")["mean"]
+        .loc[:, ["cluster", "technology", value_to_plot]]
+        .pivot_table(index="cluster", columns="technology")[value_to_plot]
     )
 
     # FIXME: determine number of technologies and metrics dynamically
@@ -1007,7 +1316,7 @@ def plot_scenario_analysis_v2(
             scenario_description=scenario_description,
             year=year,
             focus_scenario=scenario_number,
-            value_to_plot="mean",
+            value_to_plot=value_to_plot,
         )
         ax["capacity_bar"].annotate(
             "A",
@@ -1088,7 +1397,7 @@ def plot_scenario_analysis_v2(
 
         plt.tight_layout(pad=1)
         plt.savefig(
-            f"../figures/appendices/scenario_analysis/v2/{spatial_resolution}_sc{scenario_number}_{year}.png",
+            f"../figures/appendices/scenario_analysis/v2/{spatial_resolution}_sc{scenario_number}_silhouette_{year}.png",
             bbox_inches="tight",
             dpi=120,
         )

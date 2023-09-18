@@ -77,7 +77,7 @@ ELECTRICITY_PRODUCERS_SPORES = {
     "hydro_reservoir": "Hydro",
     "hydro_run_of_river": "Hydro",
     "nuclear": "Nuclear",
-    "battery": "Battery",
+    # "battery": "Battery",
 }
 ELECTRICITY_PRODUCERS_IRENASTAT = {
     "Solar photovoltaic": "PV",
@@ -87,7 +87,7 @@ ELECTRICITY_PRODUCERS_IRENASTAT = {
     "Renewable hydropower": "Hydro",
     "Pumped storage": "Hydro",
     "Nuclear": "Nuclear",
-    "Natural gas": "CCGT",
+    "Natural gas": "Gas turbines",
 }
 
 

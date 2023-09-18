@@ -361,7 +361,7 @@ def get_spore_to_scenario_maps(path_to_processed_data, years, resolution="Europe
             os.path.join(
                 "../data/processed",
                 year,
-                f"spore_to_scenario_silhouette_{resolution}.json",
+                f"spore_to_scenario_{resolution}.json",
             ),
             "r",
         ) as json_file:
@@ -470,7 +470,7 @@ def load_processed_power_capacity(path_to_processed_data, years):
             os.path.join(path_to_processed_data, year, "power_capacity.csv"),
             index_col=["region", "technology", "spore"],
         ).squeeze()
-
+        power[year].name = "capacity_gw"
     return power
 
 
