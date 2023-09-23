@@ -105,7 +105,7 @@ def process_power_capacity(spores_data):
     power_capacity_national = (
         spores_data.get("nameplate_capacity")
         .xs("tw", level="unit")
-        .xs("electricity", level="carriers")
+        # .xs("electricity", level="carriers")
         .unstack("spore")
         .groupby(
             [REGION_MAPPING, ELECTRICITY_PRODUCERS_SPORES],
@@ -237,10 +237,9 @@ def process_primary_energy_supply(spores_data):
 
 
 def add_internation_transmission_to_power_capacity(power_data, grid_data):
+    grid_data *= 1000
     # Compute international grid capacity per country
-    international_transmission = (
-        grid_data.groupby(["importing_region", "spore"]).sum() * 1000
-    )
+    international_transmission = grid_data.groupby(["importing_region", "spore"]).sum()
     international_transmission.index = pd.MultiIndex.from_tuples(
         [
             (index[0], "International transmission", index[1])
@@ -328,7 +327,7 @@ if __name__ == "__main__":
     years = ["2030", "2050"]
 
     # Set to True if you want processed data to be saved as new csv files
-    save = True
+    save = False
 
     # Set this to a list of years (like ["2030"]) if the spores results are provided in different folders for different categories of spores results
     # Set this to None if spores results are provided in one folder containing all spores
@@ -372,6 +371,27 @@ if __name__ == "__main__":
 
     # Get raw data
     data = get_raw_data(paths_to_raw_data=paths_to_raw_spores, years=years)
+
+    for year in ["2030", "2050"]:
+        power_capacity_national = (
+            data.get(year)
+            .get("nameplate_capacity")
+            .xs("tw", level="unit")
+            .unstack("spore")
+            .groupby(
+                [REGION_MAPPING, ELECTRICITY_PRODUCERS_SPORES],
+                level=["region", "technology"],
+            )
+            .sum()
+            .stack("spore")
+        )
+        # Calculate continental capacity
+        power_capacity_eu = power_capacity_national.groupby(
+            ["technology", "spore"]
+        ).sum()
+        power_capacity_eu *= 1000
+        print(power_capacity_eu)
+        print(power_capacity_eu.groupby("technology").agg(["min", "max"]))
 
     # Change "spore" to integer values for 2030 SPORES results
     data["2030"] = convert_spore_names_to_integers(data.get("2030"))
