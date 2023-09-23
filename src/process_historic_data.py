@@ -19,7 +19,9 @@ def read_irenastat_data(path, year):
     df = df[
         (df["year"] == year)
         & (df["grid_connection"] == "On-grid")
-        & df["technology"].isin(["Offshore wind energy", "Onshore wind energy"])
+        & df["technology"].isin(
+            ["Offshore wind energy", "Onshore wind energy", "Solar photovoltaic"]
+        )
     ]
     df = df.drop("grid_connection", axis=1).reset_index(drop=True)
     # Rename country
@@ -30,26 +32,14 @@ def read_irenastat_data(path, year):
 
 
 def read_ember_data(path, year):
-    # FIXME: should "Bio-energy" be added? If so; add to CCGT? Look up https://ember-climate.org/app/uploads/2022/03/GER22-Methodology.pdf
     df = pd.read_csv(path, header=1, sep=";")
     df = df[
         (df["year"] == year)
-        & (df["variable"].isin(["Coal", "Gas", "Hydro", "Nuclear", "Solar"]))
+        & (df["variable"].isin(["Bioenergy", "Coal", "Gas", "Hydro", "Nuclear"]))
     ].reset_index(drop=True)
     df.columns = ["region", "year", "technology", "capacity_gw"]
     # Rename technologies
     df["technology"] = df["technology"].replace(TECH_MAPPING_EMBER)
-    # FIXME: Add CHP data and set to zero
-    country = df["region"].iloc[0]
-    chp_df = pd.DataFrame(
-        {
-            "year": [year],
-            "region": [country],
-            "technology": ["CHP"],
-            "capacity_gw": [0.0],
-        }
-    )
-    df = pd.concat([df, chp_df], ignore_index=True)
 
     return df[COLUMN_ORDER]
 
@@ -72,11 +62,19 @@ def process_historic_data(
             # Combine Irenastat and Ebmer data
             df = pd.concat([df, df_ember, df_irenastat]).reset_index(drop=True)
     df["spore"] = 0
+    # Calculate continental capacity
+    df_eu = (
+        df.groupby(["year", "technology", "spore"])["capacity_gw"].sum().reset_index()
+    )
+    df_eu["region"] = "Europe"
+    df_eu = df_eu[["year", "region", "technology", "capacity_gw", "spore"]]
+    # Concatenate national and continental values in one Series
+    power_capacity = pd.concat([df, df_eu]).fillna(0)
 
     # Save to .csv and return dataframe
     if save:
         save_processed_historic_data(
-            processed_data=df.drop(columns=["year"]),
+            processed_data=power_capacity.drop(columns=["year"]),
             path_to_result=os.path.join(path_to_processed_data, str(year)),
         )
 

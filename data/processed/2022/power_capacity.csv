@@ -1,65 +1,262 @@
 region,technology,capacity_gw,spore
+Poland,Gas turbines,1.07,0
+Poland,Coal,29.13,0
+Poland,Gas turbines,3.15,0
+Poland,Hydro,0.98,0
+Poland,Nuclear,0.0,0
+Poland,PV,11.16652,0
+Poland,Onshore wind,7.9873400000000006,0
+Poland,Offshore wind,0.0,0
+Sweden,Gas turbines,4.09,0
 Sweden,Coal,0.0,0
-Sweden,CCGT,0.48,0
+Sweden,Gas turbines,0.48,0
 Sweden,Hydro,16.41,0
 Sweden,Nuclear,6.9,0
-Sweden,PV,2.61,0
-Sweden,CHP,0.0,0
+Sweden,PV,2.587,0
 Sweden,Onshore wind,14.364,0
 Sweden,Offshore wind,0.193,0
+Norway,Gas turbines,0.03,0
+Norway,Coal,0.0,0
+Norway,Gas turbines,0.6,0
+Norway,Hydro,34.12,0
+Norway,Nuclear,0.0,0
+Norway,PV,0.30252999999999997,0
+Norway,Onshore wind,5.067699999999999,0
+Norway,Offshore wind,0.0663,0
+Luxembourg,Gas turbines,0.05,0
+Luxembourg,Coal,0.0,0
+Luxembourg,Gas turbines,0.0,0
+Luxembourg,Hydro,0.03,0
+Luxembourg,Nuclear,0.0,0
+Luxembourg,PV,0.31916,0
+Luxembourg,Onshore wind,0.16544,0
+Luxembourg,Offshore wind,0.0,0
+Cyprus,Gas turbines,0.01,0
+Cyprus,Coal,0.0,0
+Cyprus,Gas turbines,0.0,0
+Cyprus,Hydro,0.0,0
+Cyprus,Nuclear,0.0,0
+Cyprus,PV,0.431,0
+Cyprus,Onshore wind,0.1575,0
+Cyprus,Offshore wind,0.0,0
+Bosnia Herzegovina,Gas turbines,0.01,0
+Bosnia Herzegovina,Coal,2.09,0
+Bosnia Herzegovina,Gas turbines,0.0,0
+Bosnia Herzegovina,Hydro,1.84,0
+Bosnia Herzegovina,Nuclear,0.0,0
+Bosnia and Herzegovina,PV,0.10747,0
+Bosnia and Herzegovina,Onshore wind,0.135,0
+Bosnia and Herzegovina,Offshore wind,0.0,0
+France,Gas turbines,1.48,0
 France,Coal,2.51,0
-France,CCGT,8.82,0
+France,Gas turbines,8.82,0
 France,Hydro,24.56,0
 France,Nuclear,61.4,0
-France,PV,17.42,0
-France,CHP,0.0,0
+France,PV,17.03697,0
 France,Onshore wind,20.63798,0
 France,Offshore wind,0.482,0
+Belgium,Gas turbines,0.68,0
 Belgium,Coal,0.0,0
-Belgium,CCGT,5.63,0
+Belgium,Gas turbines,5.63,0
 Belgium,Hydro,0.11,0
 Belgium,Nuclear,5.85,0
-Belgium,PV,6.9,0
-Belgium,CHP,0.0,0
+Belgium,PV,6.8984,0
 Belgium,Onshore wind,2.9896,0
 Belgium,Offshore wind,2.2618,0
+Netherlands,Gas turbines,0.49,0
 Netherlands,Coal,3.5,0
-Netherlands,CCGT,14.04,0
+Netherlands,Gas turbines,14.04,0
 Netherlands,Hydro,0.04,0
 Netherlands,Nuclear,0.51,0
-Netherlands,PV,18.85,0
-Netherlands,CHP,0.0,0
+Netherlands,PV,18.848689999999998,0
 Netherlands,Onshore wind,6.176,0
 Netherlands,Offshore wind,2.571,0
+Estonia,Gas turbines,0.23,0
+Estonia,Coal,0.0,0
+Estonia,Gas turbines,0.17,0
+Estonia,Hydro,0.01,0
+Estonia,Nuclear,0.0,0
+Estonia,PV,0.53477,0
+Estonia,Onshore wind,0.315,0
+Estonia,Offshore wind,0.0,0
+Spain,Gas turbines,1.14,0
 Spain,Coal,2.95,0
-Spain,CCGT,26.94,0
+Spain,Gas turbines,26.94,0
 Spain,Hydro,16.8,0
 Spain,Nuclear,7.12,0
-Spain,PV,20.52,0
-Spain,CHP,0.0,0
+Spain,PV,18.17673,0
 Spain,Onshore wind,29.30284,0
 Spain,Offshore wind,0.005,0
+Montenegro,Gas turbines,0.0,0
+Montenegro,Coal,0.22,0
+Montenegro,Gas turbines,0.0,0
+Montenegro,Hydro,0.7,0
+Montenegro,Nuclear,0.0,0
+Montenegro,PV,0.0222,0
+Montenegro,Onshore wind,0.118,0
+Montenegro,Offshore wind,0.0,0
+Serbia,Gas turbines,0.04,0
+Serbia,Coal,4.47,0
+Serbia,Gas turbines,0.55,0
+Serbia,Hydro,2.48,0
+Serbia,Nuclear,0.0,0
+Serbia,PV,0.01194,0
+Serbia,Onshore wind,0.398,0
+Serbia,Offshore wind,0.0,0
+Croatia,Gas turbines,0.16,0
+Croatia,Coal,0.34,0
+Croatia,Gas turbines,0.91,0
+Croatia,Hydro,2.2,0
+Croatia,Nuclear,0.0,0
+Croatia,PV,0.18230000000000002,0
+Croatia,Onshore wind,1.0429000000000002,0
+Croatia,Offshore wind,0.0,0
+Latvia,Gas turbines,0.16,0
+Latvia,Coal,0.0,0
+Latvia,Gas turbines,1.09,0
+Latvia,Hydro,1.61,0
+Latvia,Nuclear,0.0,0
+Latvia,PV,0.056159999999999995,0
+Latvia,Onshore wind,0.13613,0
+Latvia,Offshore wind,0.0,0
+United Kingdom,Gas turbines,6.64,0
 United Kingdom,Coal,5.23,0
-United Kingdom,CCGT,35.84,0
+United Kingdom,Gas turbines,35.84,0
 United Kingdom,Hydro,2.19,0
 United Kingdom,Nuclear,8.14,0
 United Kingdom,PV,14.66,0
-United Kingdom,CHP,0.0,0
 United Kingdom,Onshore wind,14.832,0
 United Kingdom,Offshore wind,13.928,0
+Germany,Gas turbines,8.81,0
 Germany,Coal,40.36,0
-Germany,CCGT,24.89,0
+Germany,Gas turbines,24.89,0
 Germany,Hydro,5.54,0
 Germany,Nuclear,8.11,0
-Germany,PV,66.66,0
-Germany,CHP,0.0,0
+Germany,PV,66.662,0
 Germany,Onshore wind,58.165,0
 Germany,Offshore wind,8.129,0
+Albania,PV,0.0286,0
+Albania,Onshore wind,0.0,0
+Albania,Offshore wind,0.0,0
+Slovakia,Gas turbines,0.24,0
+Slovakia,Coal,0.77,0
+Slovakia,Gas turbines,1.0,0
+Slovakia,Hydro,1.62,0
+Slovakia,Nuclear,2.0,0
+Slovakia,PV,0.537,0
+Slovakia,Onshore wind,0.004,0
+Slovakia,Offshore wind,0.0,0
+Portugal,Gas turbines,0.68,0
+Portugal,Coal,0.0,0
+Portugal,Gas turbines,4.21,0
+Portugal,Hydro,7.59,0
+Portugal,Nuclear,0.0,0
+Portugal,PV,2.36478,0
+Portugal,Onshore wind,5.43033,0
+Portugal,Offshore wind,0.025,0
+Ireland,Gas turbines,0.07,0
+Ireland,Coal,0.92,0
+Ireland,Gas turbines,4.41,0
+Ireland,Hydro,0.24,0
+Ireland,Nuclear,0.0,0
+Ireland,PV,0.0,0
+Ireland,Onshore wind,4.59384,0
+Ireland,Offshore wind,0.0252,0
+Lithuania,Gas turbines,0.1,0
+Lithuania,Coal,0.0,0
+Lithuania,Gas turbines,1.26,0
+Lithuania,Hydro,0.12,0
+Lithuania,Nuclear,0.0,0
+Lithuania,PV,0.397,0
+Lithuania,Onshore wind,0.814,0
+Lithuania,Offshore wind,0.0,0
+Slovenia,Gas turbines,0.07,0
+Slovenia,Coal,1.07,0
+Slovenia,Gas turbines,0.42,0
+Slovenia,Hydro,1.17,0
+Slovenia,Nuclear,0.69,0
+Slovenia,PV,0.6321599999999999,0
+Slovenia,Onshore wind,0.00333,0
+Slovenia,Offshore wind,0.0,0
+Hungary,Gas turbines,0.52,0
+Hungary,Coal,1.19,0
+Hungary,Gas turbines,3.03,0
+Hungary,Hydro,0.06,0
+Hungary,Nuclear,2.01,0
+Hungary,PV,2.988,0
+Hungary,Onshore wind,0.324,0
+Hungary,Offshore wind,0.0,0
+Bulgaria,Gas turbines,0.05,0
+Bulgaria,Coal,5.11,0
+Bulgaria,Gas turbines,1.2,0
+Bulgaria,Hydro,2.51,0
+Bulgaria,Nuclear,2.01,0
+Bulgaria,PV,1.9483599999999999,0
+Bulgaria,Onshore wind,0.70438,0
+Bulgaria,Offshore wind,0.0,0
+Romania,Gas turbines,0.14,0
+Romania,Coal,3.29,0
+Romania,Gas turbines,3.8,0
+Romania,Hydro,6.57,0
+Romania,Nuclear,1.3,0
+Romania,PV,1.41392,0
+Romania,Onshore wind,3.01496,0
+Romania,Offshore wind,0.0,0
+Italy,Gas turbines,3.0,0
 Italy,Coal,6.17,0
-Italy,CCGT,43.75,0
+Italy,Gas turbines,43.75,0
 Italy,Hydro,18.84,0
-Italy,Nuclear,,0
-Italy,PV,25.08,0
-Italy,CHP,0.0,0
+Italy,Nuclear,0.0,0
+Italy,PV,25.07656,0
 Italy,Onshore wind,11.74973,0
 Italy,Offshore wind,0.03,0
+Austria,Gas turbines,0.93,0
+Austria,Coal,0.0,0
+Austria,Gas turbines,4.98,0
+Austria,Hydro,14.97,0
+Austria,Nuclear,0.0,0
+Austria,PV,3.53891,0
+Austria,Onshore wind,3.73581,0
+Austria,Offshore wind,0.0,0
+Finland,Gas turbines,2.45,0
+Finland,Coal,1.47,0
+Finland,Gas turbines,2.59,0
+Finland,Hydro,3.17,0
+Finland,Nuclear,2.79,0
+Finland,PV,0.5906,0
+Finland,Onshore wind,5.541,0
+Finland,Offshore wind,0.073,0
+Greece,Gas turbines,0.11,0
+Greece,Coal,2.22,0
+Greece,Gas turbines,5.59,0
+Greece,Hydro,3.42,0
+Greece,Nuclear,0.0,0
+Greece,PV,5.5574200000000005,0
+Greece,Onshore wind,4.87913,0
+Greece,Offshore wind,0.0,0
+Czechia,Gas turbines,0.83,0
+Czechia,Coal,7.5,0
+Czechia,Gas turbines,1.66,0
+Czechia,Hydro,1.11,0
+Czechia,Nuclear,4.29,0
+Czechia,PV,2.62709,0
+Czechia,Onshore wind,0.33941000000000004,0
+Czechia,Offshore wind,0.0,0
+North Macedonia,Gas turbines,0.01,0
+North Macedonia,Coal,0.82,0
+North Macedonia,Gas turbines,0.23,0
+North Macedonia,Hydro,0.69,0
+North Macedonia,Nuclear,0.0,0
+North Macedonia,PV,0.08493,0
+North Macedonia,Onshore wind,0.037,0
+North Macedonia,Offshore wind,0.0,0
+Iceland,PV,0.0,0
+Iceland,Onshore wind,0.0018,0
+Iceland,Offshore wind,0.0,0
+Europe,Coal,121.33,0
+Europe,Gas turbines,235.53,0
+Europe,Hydro,171.7,0
+Europe,Nuclear,113.12,0
+Europe,Offshore wind,27.7893,0
+Europe,Onshore wind,203.16315,0
+Europe,PV,205.78916999999998,0

@@ -155,11 +155,12 @@ COUNTRY_MAPPING_IRENASTAT = {
 TECH_MAPPING_IRENASTAT = {
     "Onshore wind energy": "Onshore wind",
     "Offshore wind energy": "Offshore wind",
+    "Solar photovoltaic": "PV",
 }
 
 TECH_MAPPING_EMBER = {
-    "Gas": "CCGT",
-    "Solar": "PV",
+    "Bioenergy": "Gas turbines",
+    "Gas": "Gas turbines",
 }
 
 # Metrics
