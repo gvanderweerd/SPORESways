@@ -1,6 +1,7 @@
 import json
 import os
 import pandas as pd
+import plotly.express as px
 
 # Functions from own source code
 from src.utils.parameters import *
@@ -213,8 +214,6 @@ def plot_scenario_heatmap(power_capacity, spatial_resolution):
     median_capacity_normalised = (
         capacity_normalised.groupby(level=["cluster", "technology"]).median().unstack()
     )
-    print(median_capacity)
-    print(median_capacity_normalised)
 
     plt.figure(figsize=(FIGWIDTH, FIGWIDTH))
     sns.heatmap(
@@ -233,17 +232,149 @@ def plot_scenario_heatmap(power_capacity, spatial_resolution):
     plt.xlabel("Technologies")
 
 
+def plot_scenario_analysis_v3(
+    power_capacity,
+    spatial_resolution,
+    scenario_description,
+    scenario_number,
+    year,
+    value_to_plot="median",
+):
+    n_rows = 2
+    n_cols = 3
+    n_spores_per_cluster = count_spores_per_cluster(paper_metrics.get(year))
+    n_spores = n_spores_per_cluster.get(scenario_number)
+    n_spores_total = len(power_capacity.get(year).index.unique(level="spore"))
+
+    with sns.plotting_context("paper", font_scale=1.5):
+        ax = {}
+        fig = plt.figure(figsize=(2 * FIGWIDTH, FIGWIDTH * 9 / 16))
+        gs = gridspec.GridSpec(
+            n_rows,
+            n_cols,
+            height_ratios=[2, 18],
+            width_ratios=[1, 24, 4],
+            hspace=0.2,
+            wspace=0.3,
+        )
+        _row = 0
+        alpha_idx = 0
+
+        # Plot figure title
+        ax["title"] = plt.subplot(gs[0, :], frameon=False)
+        plot_title(
+            ax["title"],
+            title=f"{spatial_resolution} scenario {scenario_number}, {year} ({n_spores} / {n_spores_total} SPORES)",
+        )
+
+        # Plot capacity bar for focus scenario
+        ax["capacity_bar"] = plt.subplot(gs[1, 0], frameon=False)
+        plot_capacity_bar(
+            ax=ax["capacity_bar"],
+            scenario_description=scenario_description,
+            year=year,
+            focus_scenario=scenario_number,
+            value_to_plot=value_to_plot,
+        )
+        ax["capacity_bar"].annotate(
+            "A",
+            fontweight="bold",
+            xy=(0, 1.1),
+            xycoords="axes fraction",
+            horizontalalignment="left",
+            fontsize="small",
+        )
+
+        # Plot capacity distribution for focus scenario
+        ax["capacity_distribution"] = plt.subplot(gs[1, 1], frameon=True)
+        plot_capacity_distribution(
+            ax=ax["capacity_distribution"],
+            capacity=power_capacity.get(year),
+            year=year,
+            resolution=spatial_resolution,
+            focus_cluster=scenario_number,
+        )
+        ax["capacity_distribution"].annotate(
+            "B",
+            fontweight="bold",
+            xy=(0, 1.1),
+            xycoords="axes fraction",
+            horizontalalignment="left",
+            fontsize="small",
+        )
+
+        # Add legend
+        handles, labels = ax["capacity_bar"].get_legend_handles_labels()
+
+        ax["european_scenarios_legend"] = plt.subplot(gs[1, 2], frameon=False)
+        plot_scenario_barchart_legend(
+            ax=ax["european_scenarios_legend"],
+            handles=handles,
+            labels=labels,
+            year=year,
+            n_spores=n_spores_total,
+        )
+
+        plt.tight_layout(pad=1)
+        plt.savefig(
+            f"../figures/appendices/scenario_analysis/v3/{spatial_resolution}_{year}_sc{scenario_number}.png",
+            bbox_inches="tight",
+            dpi=120,
+        )
+
+
+def generate_scenario_names(power_data, summary_stats):
+    # Define thresholds for 'high' and 'low' technology deployments
+    high_thresholds = summary_stats["75%"]
+    low_thresholds = summary_stats["25%"]
+
+    # Evaluate deployment of each technoology in the cluster
+    high_deployment = power_data[power_data > high_thresholds].index.to_list()
+    low_deployment = power_data[power_data < low_thresholds].index.to_list()
+
+    # Generate a name for the cluster based on the evaluations
+    name_parts = []
+    if high_deployment:
+        name_parts.append("High " + " \& ".join(high_deployment))
+    if low_deployment:
+        name_parts.append("Low " + " \& ".join(low_deployment))
+
+    if not name_parts:
+        return "No extreme deployments"
+
+    return ", ".join(name_parts)
+
+
+def plot_treemap(power_data, scenario_names):
+    tree_data = power_data.groupby(["cluster", "technology"]).mean().reset_index()
+    tree_data["cluster_name"] = tree_data["cluster"].apply(
+        lambda x: scenario_names[scenario_names["cluster"] == x]["name"].values[0]
+    )
+
+    # Plot figure
+    fig = px.treemap(
+        tree_data,
+        path=["cluster_name", "technology"],
+        values="capacity_gw",
+        title="Treemap of Technology Deployments Accross Scenarios",
+        color="capacity_gw",
+        color_continuous_scale="RdBu",
+        labels={"capacity_gw": "Capacity [GW]"},
+    )
+    fig.show()
+
+
 if __name__ == "__main__":
     """
     0. SET PARAMETERS
     """
     # Choose scenario_number to analyse
-    focus_scenario = 4
+    focus_scenario = 1
     focus_year = "2050"
     generate_figures_for_all_scenarios = False
 
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "Europe"
+    spatial_resolution = "Germany"
 
     """
     1. READ AND PREPARE DATA
@@ -297,15 +428,19 @@ if __name__ == "__main__":
         scenario_description=scenario_description,
         n_spores_per_cluster=n_spores_per_cluster,
         resolution=spatial_resolution,
-        value_to_plot="mean",
+        value_to_plot="median",
     )
-    # Visualise all scenarios for Europe
-    plot_scenario_analysis_barchart(
-        scenario_description=scenario_description_eu,
-        n_spores_per_cluster=n_spores_per_cluster_eu,
-        resolution="Europe",
-        value_to_plot="mean",
-    )
+    # # Visualise all scenarios for Europe
+    # plot_scenario_analysis_barchart(
+    #     scenario_description=scenario_description_eu,
+    #     n_spores_per_cluster=n_spores_per_cluster_eu,
+    #     resolution="Europe",
+    #     value_to_plot="median",
+    # )
+
+    print(power_capacity.get("2030"))
+
+    power_capacity.get("2030").to_csv("ger_scenarios_2030.csv")
 
     # Visualise plot to analyse 1 chosen scenario in 1 chosen year
     if generate_figures_for_all_scenarios:
@@ -320,14 +455,10 @@ if __name__ == "__main__":
                 resolution=spatial_resolution,
             )
 
-            plot_scenario_analysis_v2(
+            plot_scenario_analysis_v3(
                 power_capacity=power_capacity,
-                paper_metrics=paper_metrics,
                 spatial_resolution=spatial_resolution,
                 scenario_description=scenario_description,
-                scenario_description_eu=scenario_description_eu,
-                infeasible_european_scenarios=infeasible_european_scenarios,
-                n_spores_per_cluster_eu=n_spores_per_cluster_eu,
                 scenario_number=scenario,
                 year=focus_year,
             )
@@ -342,23 +473,44 @@ if __name__ == "__main__":
             resolution=spatial_resolution,
         )
 
-        plot_scenario_analysis_v2(
+        plot_scenario_analysis_v3(
             power_capacity=power_capacity,
-            paper_metrics=paper_metrics,
             spatial_resolution=spatial_resolution,
             scenario_description=scenario_description,
-            scenario_description_eu=scenario_description_eu,
-            infeasible_european_scenarios=infeasible_european_scenarios,
-            n_spores_per_cluster_eu=n_spores_per_cluster_eu,
             scenario_number=focus_scenario,
             year=focus_year,
         )
 
-    plot_scenario_heatmap(
-        power_capacity=power_capacity_eu.get("2050"),
-        spatial_resolution=spatial_resolution,
-    )
-    plt.show()
+    # plot_scenario_heatmap(
+    #     power_capacity=power_capacity_eu.get("2030"),
+    #     spatial_resolution=spatial_resolution,
+    # )
+    # plot_scenario_heatmap(
+    #     power_capacity=power_capacity_eu.get("2050"),
+    #     spatial_resolution=spatial_resolution,
+    # )
+    # plt.show()
 
     # fig, ax = plt.subplots()
     # plot_grid_capacity_map(ax, grid_capacity.get(focus_year), focus_scenario)
+
+    """
+    3. Name scenarios based on low/high deployment of technologies
+    """
+    print(f"Scenario names for scenarios in {spatial_resolution}")
+    for year in ["2030", "2050"]:
+        print(f"Year: {year}")
+        scenario_median_values = (
+            power_capacity.get(year)
+            .groupby(["cluster", "technology"])
+            .median()
+            .unstack()
+            .reset_index()
+        )
+        summary_stats = power_capacity.get(year).groupby("technology").describe()
+        scenario_median_values["name"] = scenario_median_values.drop(
+            "cluster", axis=1
+        ).apply(generate_scenario_names, axis=1, args=(summary_stats,))
+        scenario_names = scenario_median_values[["cluster", "name"]]
+        pd.options.display.max_colwidth = 200
+        print(scenario_names)
