@@ -89,7 +89,7 @@ def find_n_clusters(
     silhouette_optimal_clusters = np.argmax(silhouette_scores) + min_clusters
 
     print(
-        f"Optimal number of clusters found by Silhouette method: {silhouette_optimal_clusters}"
+        f"Optimal number of clusters found by Silhouette method: {silhouette_optimal_clusters} (Best average silhouette score = {max(silhouette_scores)})"
     )
 
     # Plot figures for selecting optimal number of clusters
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     # Choose scenario_number to analyse
     focus_scenario = 0
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "Germany"
+    spatial_resolution = "Europe"
     # Set to True if you want to manually force the clustering algorithm to find a number of clusters
     manually_set_n_clusters = False
 
