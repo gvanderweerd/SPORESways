@@ -371,10 +371,10 @@ if __name__ == "__main__":
     # Choose scenario_number to analyse
     focus_scenario = 1
     focus_year = "2050"
-    generate_figures_for_all_scenarios = False
+    generate_figures_for_all_scenarios = True
 
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "Germany"
+    spatial_resolution = "Europe"
 
     """
     1. READ AND PREPARE DATA
@@ -415,7 +415,7 @@ if __name__ == "__main__":
         )
 
     all_scenarios = power_capacity.get(focus_year).index.unique(level="cluster")
-
+    print(all_scenarios)
     max_link_capacity = max(
         grid_capacity.get("2030").max(), grid_capacity.get("2050").max()
     )
@@ -489,10 +489,6 @@ if __name__ == "__main__":
     #     power_capacity=power_capacity_eu.get("2050"),
     #     spatial_resolution=spatial_resolution,
     # )
-    # plt.show()
-
-    # fig, ax = plt.subplots()
-    # plot_grid_capacity_map(ax, grid_capacity.get(focus_year), focus_scenario)
 
     """
     3. Name scenarios based on low/high deployment of technologies
@@ -514,3 +510,4 @@ if __name__ == "__main__":
         scenario_names = scenario_median_values[["cluster", "name"]]
         pd.options.display.max_colwidth = 200
         print(scenario_names)
+    plt.show()

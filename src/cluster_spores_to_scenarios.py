@@ -136,7 +136,7 @@ if __name__ == "__main__":
     # Choose scenario_number to analyse
     focus_scenario = 0
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "Europe"
+    spatial_resolution = "United Kingdom"
     # Set to True if you want to manually force the clustering algorithm to find a number of clusters
     manually_set_n_clusters = False
 
@@ -180,10 +180,10 @@ if __name__ == "__main__":
         # Find optimal number of clusters based on Elbow and Silhouette score methods
         n_clusters = find_n_clusters(
             data_series=power_capacity.get(year),
-            min_clusters=2,
+            min_clusters=3,
             max_clusters=15,
             method="silhouette",
-            plot=False,
+            plot=True,
         )
         plt.show()
 
