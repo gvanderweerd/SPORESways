@@ -60,7 +60,7 @@ def cluster_spores(data_series, n_clusters):
 
 
 def find_n_clusters(
-    data_series, min_clusters=2, max_clusters=10, method="silhouette", plot=True
+    data_series, min_clusters=2, max_clusters=10, plot=True
 ):
     # Prepare data for clustering
     data_series_prepared = prepare_data_for_clustering(data_series)
@@ -83,9 +83,6 @@ def find_n_clusters(
             silhouette_scores.append(None)
 
     # Find optimal number of clusters for both methods
-    # FIXME: the elbow method does not find the elbow point correctly --> default to silhouette method
-    second_derivative_wcss = np.diff(np.diff(wcss))
-    elbow_optimal_clusters = np.argmax(second_derivative_wcss) + min_clusters
     silhouette_optimal_clusters = np.argmax(silhouette_scores) + min_clusters
 
     print(
@@ -101,10 +98,7 @@ def find_n_clusters(
             silhouette_scores, min_clusters, max_clusters, spatial_resolution, year
         )
 
-    if method == "silhouette":
-        return silhouette_optimal_clusters
-    elif method == "elbow":
-        return elbow_optimal_clusters
+    return silhouette_optimal_clusters
 
 
 def prepare_data_for_clustering(data_series):
@@ -136,22 +130,9 @@ if __name__ == "__main__":
     # Choose scenario_number to analyse
     focus_scenario = 0
     # Set spatial granularity for which to run the analysis ("national", or "continental")
-    spatial_resolution = "United Kingdom"
+    spatial_resolution = "Europe"
     # Set to True if you want to manually force the clustering algorithm to find a number of clusters
     manually_set_n_clusters = False
-
-    # Based on looking at Elbow figure & Silhouette score figure the best number of clusters is chosen:
-    # National: {"2030": 14, "2050": 14}
-    # Europe: {"2030": 10, "2050": 6} #FIXME: or "2050": 9?
-    # Italy: {"2030": 6, "2050": 8}
-    # Netherlands: {"2030": 6, "2050": 5}
-    # Germany: {"2030": 5, "2050": 4}
-    # Spain: {"2030": 6, "2050": 7}
-    # France: {"2030": 8, "2050": 10}
-    # France: {"2030": 7, "2050": 6}
-    # United Kingdom: {}
-    # Denmark: {}
-    # Sweden: {}
     if manually_set_n_clusters:
         n_clusters_manual = {"2030": 6, "2050": 5}
 
@@ -177,12 +158,11 @@ if __name__ == "__main__":
         print(
             f"\n For clustering {year} SPORES results based on installed capacity of power generation technologies in {spatial_resolution} we find: \n"
         )
-        # Find optimal number of clusters based on Elbow and Silhouette score methods
+        # Find optimal number of clusters based on Silhouette score method (also plot WCSS to see results for elbow method --> elbow method requires manual picking of clusters based on the WCSS plot. Number of clusters can be set manually in lines 135-137)
         n_clusters = find_n_clusters(
             data_series=power_capacity.get(year),
-            min_clusters=3,
+            min_clusters=5, # set to 5 because lower than five clusters gives clusters with very high WCSS, meaning you get clusters with SPORES very far from the centroid cluster (WCSS usually drops of very quickly)
             max_clusters=15,
-            method="silhouette",
             plot=True,
         )
         plt.show()
