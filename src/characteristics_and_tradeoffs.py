@@ -411,7 +411,7 @@ def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year):
         # Drop hydro & nuclear (not useful because they do not vary across spores)
         power_data = power_data.loc[
             ~power_data.index.get_level_values("technology").isin(["Hydro", "Nuclear"])
-        ].rename(index={"United Kingdom": "UK"})
+        ].rename(index={"United Kingdom": "UK", "Netherlands": "NLD", "Italy": "ITA", "Germany": "DEU", "France": "FRA", "Spain": "ESP"})
 
         # Transform data
         df_power = power_data.unstack(["region", "technology"])
@@ -518,11 +518,15 @@ def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year):
         for x in country_changes_x[1:-1]:
             ax.axvline(x=x, color="black", linewidth=0.5)
 
+        # Define offsets for country names along x and y axis
+        x_offset = -18
+        y_offset = -18
+
         # Add country annotations
         for i in range(len(country_changes_y) - 1):
             y_pos = (country_changes_y[i] + country_changes_y[i + 1]) / 2
             ax.text(
-                -16,
+                x_offset,
                 y_pos,
                 corr.index[country_changes_y[i]][0],
                 rotation=90,
@@ -535,7 +539,7 @@ def plot_trade_offs_as_correlation_heatmap(power_data, metrics_data, year):
             x_pos = (country_changes_x[i] + country_changes_x[i + 1]) / 2
             ax.text(
                 x_pos,
-                -16,
+                y_offset,
                 corr.columns[country_changes_y[i]][0],
                 horizontalalignment="center",
                 color="black",
@@ -605,11 +609,29 @@ def add_battery_and_grid_capacity_to_power_capacity(
     return power_data
 
 
+def relation_between_pv_onshore_and_offshore_in_2050(power_data):
+    # Find number of 2030 SPORES below 1 TW (as 1 TW is lower threshold in 2050 apart from 2 outlier SPORES)
+    mask = power_capacity.get("2030").loc["Europe", "PV", :] < 1000
+    print(f"Number of SPORES in 2030 below 1 TW: {len(mask[mask])}/{len(mask)}")
+
+    pd.set_option("display.max_rows", None)
+    print("sort on onshore:")
+    df = (
+        power_capacity.get("2050")
+        .loc["Europe", ["Onshore wind", "Offshore wind", "PV"], :]
+        .unstack("technology")
+    )
+
+    df.to_csv(os.path.join("europe_pv_and_wind_capacity_2050.csv"))
+    pd.set_option("display.max_rows", 10)
+
+
 if __name__ == "__main__":
     years = ["2030", "2050"]
     path_to_processed_data = os.path.join(os.getcwd(), "..", "data", "processed")
-    region_of_interest = "Germany"
+    region_of_interest = "Netherlands"
     regions_to_analyse = [
+        "Netherlands",
         "France",
         "Germany",
         "Italy",
@@ -628,6 +650,18 @@ if __name__ == "__main__":
     final_consumption = load_processed_final_consumption(path_to_processed_data, years)
     primary_energy_supply = load_processed_primary_energy_supply(
         path_to_processed_data, years
+    )
+    print(
+        power_capacity.get("2030")
+        .loc["Europe", :, :]
+        .groupby("technology")
+        .agg(["min", "max"])
+    )
+    print(
+        power_capacity.get("2050")
+        .loc["Europe", :, :]
+        .groupby("technology")
+        .agg(["min", "max"])
     )
 
     # Biggest country in terms of TPES
@@ -676,4 +710,12 @@ if __name__ == "__main__":
     """
     plot_trade_offs_as_correlation_heatmap(power_capacity, paper_metrics, "2030")
     plot_trade_offs_as_correlation_heatmap(power_capacity, paper_metrics, "2050")
+
+    # Filter data for regions to analyse
+    power_capacity = filter_data_on_countries_of_interest(
+        power_capacity, ["Europe", "Netherlands", "Germany"]
+    )
+    plot_trade_offs_as_correlation_heatmap(power_capacity, paper_metrics, "2030")
+    plot_trade_offs_as_correlation_heatmap(power_capacity, paper_metrics, "2050")
+
     plt.show()
