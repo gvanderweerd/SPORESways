@@ -93,6 +93,7 @@ primary_energy_plot_names = {
     "Net natural gas import": "Net natural\ngas import",
     "Net oil import": "Net oil\nimport",
     "Net electricity import": "Net electricity\nimport",
+    "Nuclear heat": "Nuclear heat",
 }
 metric_range_formatting = {
     "curtailment": lambda x: x.round(0).astype(int),
@@ -149,7 +150,7 @@ POWER_TECH_COLORS_GREYED = {
 }
 
 
-def get_color_dict2(label_list):
+def get_color_dict(label_list):
     color_palette = sns.color_palette("bright")
     colors = {
         label_list[i]: color_palette[i % len(color_palette)]
@@ -159,67 +160,11 @@ def get_color_dict2(label_list):
     return colors
 
 
-def get_color_dict(label_list):
-    # Define colours
-    colors = {
-        label_list[i]: (
-            sns.color_palette("bright")[:-3] + sns.color_palette("bright")[-2:]
-        )[i]
-        for i in range(len(label_list))
-    }
-    colors["rest_color"] = sns.color_palette("bright")[-3]
-    return colors
-
-
 def remove_top_and_right_spines(ax):
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
     # ax.xaxis.set_ticks_position("bottom")
     # ax.yaxis.set_ticks_posittion("left")
-
-
-def plot_scenario_capacity_stacked_barchart2(
-    power_capacity,
-    n_spores_per_cluster,
-    year,
-    ax,
-    spores_amount_y_offset=20,
-    greyed_out_scenarios=[],
-):
-    scenario_description = describe_scenario(power_capacity)
-    scenario_values = scenario_description.loc[
-        :, ["cluster", "technology", "mean"]
-    ].pivot_table(index="cluster", columns="technology")["mean"]
-
-    # Plot figure
-    scenario_values.plot(ax=ax, kind="bar", stacked=True, color=POWER_TECH_COLORS)
-    ax.set_xlabel(f"{year}", weight="bold")
-    ax.set_ylabel("Average installed capacity [GW]", weight="bold")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
-
-    # Annotate number of SPORE in each cluster on top of each bar
-    for cluster_number, spores_count in enumerate(n_spores_per_cluster):
-        ax.text(
-            cluster_number,
-            # FIXME: Scale this to the max total capacity that exist in the figure
-            scenario_values.sum(axis=1)[cluster_number] + spores_amount_y_offset,
-            f"{spores_count}",
-            va="center",
-            ha="center",
-        )
-
-    # Grey out bars if needed
-    techs = scenario_values.columns.to_list()
-    for tech_index, bar_container in enumerate(ax.containers):
-        tech = techs[tech_index]
-        for cluster_index, bar in enumerate(bar_container):
-            if cluster_index in greyed_out_scenarios:
-                bar.set_facecolor(POWER_TECH_COLORS_GREYED[tech])
-
-    # Remove legend
-    ax.get_legend().remove()
-    # Remove top and right spines
-    remove_top_and_right_spines(ax)
 
 
 def plot_scenario_capacity_stacked_barchart(
@@ -235,7 +180,7 @@ def plot_scenario_capacity_stacked_barchart(
         ax=ax, kind="bar", stacked=True, color=POWER_TECH_COLORS
     )
     ax.set_xlabel(f"{year}", weight="bold")
-    ax.set_ylabel("Average installed capacity [GW]", weight="bold")
+    ax.set_ylabel("Median installed capacity [GW]", weight="bold")
     ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
 
     # Annotate number of SPORE in each cluster on top of each bar
@@ -297,8 +242,8 @@ def plot_metrics_distribution(ax, metrics, year, focus_cluster=None, plot_boxes=
     # Get colors dictionary for metric
     metric_labels = list(metrics.index.unique(level="metric"))
     cluster_labels = list(metrics.index.unique(level="cluster"))
-    metric_colors = get_color_dict2(metric_labels)
-    cluster_colors = get_color_dict2(cluster_labels)
+    metric_colors = get_color_dict(metric_labels)
+    cluster_colors = get_color_dict(cluster_labels)
 
     # Get SPORES to plot in color (SPORES that belong to a specific cluster)
     # spores_to_plot_in_color = metrics.xs(focus_cluster, level="cluster").index.unique(level="spore")
@@ -380,122 +325,11 @@ def plot_metrics_distribution(ax, metrics, year, focus_cluster=None, plot_boxes=
         )
     ax.set_xticklabels(xticklabels, fontsize=9)
 
-    # FIXME: get unique spores only
-    # print(spores_to_plot_in_color)
-
     # Set figure title
     # n_spores_per_cluster = count_spores_per_cluster(metrics)
     # ax.set_title(
     #     f"Scenario {focus_cluster} ({year}): {n_spores_per_cluster[focus_cluster]} SPORES"
     # )
-
-    # Remove top and right spines
-    remove_top_and_right_spines(ax)
-
-
-def plot_metrics_distribution_based_on_spores(ax, metrics, focus_spores=None):
-    # Calculate metric ranges and get units
-    metric_ranges = metrics.groupby(level="metric").agg(["min", "max"])
-    metric_units = (
-        metrics.index.to_frame(index=False)
-        .drop_duplicates(subset="metric")
-        .set_index("metric")["unit"]
-        .to_dict()
-    )
-
-    # Normalise metrics
-    metrics_normalised = (
-        metrics.groupby(["metric"]).transform(normalise_to_max).reset_index()
-    )
-
-    # Calculate min, max for focus cluster (for plotting boxes)
-    max_scenario = (
-        metrics_normalised.loc[
-            (metrics_normalised.spore.isin(focus_spores)), ["paper_metrics", "metric"]
-        ]
-        .groupby("metric")
-        .max()["paper_metrics"]
-    )
-    min_scenario = (
-        metrics_normalised.loc[
-            (metrics_normalised.spore.isin(focus_spores)), ["paper_metrics", "metric"]
-        ]
-        .groupby("metric")
-        .min()["paper_metrics"]
-    )
-
-    # Get colors dictionary for metric
-    metric_labels = list(metrics.index.unique(level="metric"))
-    metric_colors = get_color_dict2(metric_labels)
-
-    #
-    sns.stripplot(
-        ax=ax,
-        data=metrics_normalised[~metrics_normalised.spore.isin(focus_spores)],
-        x="metric",
-        y="paper_metrics",
-        marker="o",
-        color=metric_colors["rest_color"],
-        alpha=0.5,
-        s=3,
-    )
-    # Color focus scenario
-    if focus_spores is not None:
-        sns.stripplot(
-            data=metrics_normalised[metrics_normalised.spore.isin(focus_spores)],
-            x="metric",
-            y="paper_metrics",
-            alpha=0.5,
-            ax=ax,
-            marker="o",
-            palette=metric_colors,
-            s=3,
-        )
-    # Format y-axis
-    ax.set_ylabel("Normalised metric score", weight="bold")
-    # Format x-axis
-    ax.set_xlabel("")
-    ax.set_xticks(range(len(metric_labels)))
-    ax.set_xticklabels(metric_labels, fontsize=10)
-    xticklabels = []
-    _x = 0
-    for ticklabel in ax.get_xticklabels():
-        _metric = ticklabel.get_text()
-
-        # Plot boxes
-        xmin = _x - 0.2
-        xmax = _x + 0.2
-        height = max_scenario.loc[_metric] - min_scenario.loc[_metric]
-        height += 0.018
-        ax.add_patch(
-            mpl.patches.Rectangle(
-                xy=(xmin, min_scenario.loc[_metric] - 0.009),
-                height=height,
-                width=(xmax - xmin),
-                fc="None",
-                ec=metric_colors[_metric],
-                linestyle="--",
-                lw=0.75,
-                zorder=10,
-            ),
-        )
-        _x += 1
-
-        # Format x-axis labels
-        metric_range = metric_ranges.apply(metric_range_formatting[_metric]).loc[
-            _metric
-        ]
-        _unit = metric_units.get(_metric)
-        if _unit == "percentage":
-            _unit = " %"
-        elif _unit == "fraction":
-            _unit = ""
-        else:
-            _unit = " " + _unit
-        xticklabels.append(
-            f"{metric_plot_names[_metric]}\n({metric_range['min']} - {metric_range['max']}){_unit}"
-        )
-    ax.set_xticklabels(xticklabels, fontsize=9)
 
     # Remove top and right spines
     remove_top_and_right_spines(ax)
@@ -515,8 +349,7 @@ def plot_capacity_distribution(ax, capacity, year, resolution, focus_cluster=Non
         .transform(normalise_to_max)
         .reset_index()
     )
-    print(capacity)
-    print(capacity_normalised)
+
     # Calculate min, max for focus cluster (for plotting boxes)
     max_scenario = (
         capacity_normalised.loc[
@@ -539,7 +372,7 @@ def plot_capacity_distribution(ax, capacity, year, resolution, focus_cluster=Non
     tech_labels = list(capacity.index.unique(level="technology"))
     cluster_labels = list(capacity.index.unique(level="cluster"))
 
-    cluster_colors = get_color_dict2(cluster_labels)
+    cluster_colors = get_color_dict(cluster_labels)
 
     # Get SPORES to plot in color (SPORES that belong to a specific cluster)
     # spores_to_plot_in_color = metrics.xs(focus_cluster, level="cluster").index.unique(level="spore")
@@ -610,164 +443,12 @@ def plot_capacity_distribution(ax, capacity, year, resolution, focus_cluster=Non
         # Format x-axis labels
         capacity_range = capacity_ranges.loc[_tech].round(0).astype(int)
         xticklabels.append(
-            f"{_tech}\n({capacity_range['min']} - {capacity_range['max']}) gw"
+            f"{tech_plot_names.get(_tech)}\n({capacity_range['min']} - {capacity_range['max']}) gw"
         )
     ax.set_xticklabels(xticklabels, fontsize=9)
 
     # Remove top and right spines
     remove_top_and_right_spines(ax)
-
-
-def plot_capacity_distribution_based_on_spores(
-    ax, capacity, focus_spores=None, color=None
-):
-    # Calculate metric ranges
-    capacity_ranges = (
-        capacity.groupby(level=["region", "technology"])
-        .agg(["min", "max"])
-        .droplevel("region")
-    )
-
-    # Normalise capacity
-    capacity_normalised = (
-        capacity.groupby(level=["region", "technology"])
-        .transform(normalise_to_max)
-        .reset_index()
-    )
-
-    # Calculate min, max for focus cluster (for plotting boxes)
-    max_scenario = (
-        capacity_normalised.loc[
-            (capacity_normalised.spore.isin(focus_spores)),
-            ["capacity_gw", "technology"],
-        ]
-        .groupby("technology")
-        .max()["capacity_gw"]
-    )
-    min_scenario = (
-        capacity_normalised.loc[
-            (capacity_normalised.spore.isin(focus_spores)),
-            ["capacity_gw", "technology"],
-        ]
-        .groupby("technology")
-        .min()["capacity_gw"]
-    )
-
-    # Get colors dictionary for metric
-    tech_labels = list(capacity.index.unique(level="technology"))
-    cluster_labels = list(capacity.index.unique(level="cluster"))
-
-    cluster_colors = get_color_dict2(cluster_labels)
-
-    # Get SPORES to plot in color (SPORES that belong to a specific cluster)
-    # spores_to_plot_in_color = metrics.xs(focus_cluster, level="cluster").index.unique(level="spore")
-    # spores_to_plot_in_color = capacity_normalised[
-    #     (capacity_normalised.cluster == focus_cluster)
-    # ].spore.values
-
-    #
-    sns.stripplot(
-        ax=ax,
-        data=capacity_normalised[~capacity_normalised.spore.isin(focus_spores)],
-        x="technology",
-        y="capacity_gw",
-        marker="o",
-        color=cluster_colors["rest_color"],
-        alpha=0.5,
-        s=3,
-    )
-    # Color focus scenario
-    if focus_spores is not None:
-        sns.stripplot(
-            data=capacity_normalised[capacity_normalised.spore.isin(focus_spores)],
-            x="technology",
-            y="capacity_gw",
-            alpha=0.5,
-            ax=ax,
-            marker="o",
-            palette=POWER_TECH_COLORS,
-            s=3,
-        )
-
-    # Format y-axis
-    ax.set_ylabel("Normalised installed capacity", weight="bold")
-
-    # Format x-axis
-    ax.set_xlabel("")
-    ax.set_xticks(range(len(tech_labels)))
-    ax.set_xticklabels(tech_labels, fontsize=10)
-    xticklabels = []
-    _x = 0
-
-    for ticklabel in ax.get_xticklabels():
-        _tech = ticklabel.get_text()
-
-        # Plot boxes
-        xmin = _x - 0.2
-        xmax = _x + 0.2
-        height = max_scenario.loc[_tech] - min_scenario.loc[_tech]
-        height += 0.018
-        ax.add_patch(
-            mpl.patches.Rectangle(
-                xy=(xmin, min_scenario.loc[_tech] - 0.009),
-                height=height,
-                width=(xmax - xmin),
-                fc="None",
-                ec=POWER_TECH_COLORS[_tech],
-                linestyle="--",
-                lw=0.75,
-                zorder=10,
-            ),
-        )
-        _x += 1
-
-        # Format x-axis labels
-        capacity_range = capacity_ranges.loc[_tech].round(0).astype(int)
-        xticklabels.append(
-            f"{_tech}\n({capacity_range['min']} - {capacity_range['max']})\ngw"
-        )
-    ax.set_xticklabels(xticklabels, fontsize=9)
-
-    # Remove top and right spines
-    remove_top_and_right_spines(ax)
-
-
-def format_axis_for_capacity_distibution_plot(ax, capacity):
-    tech_labels = list(capacity.index.unique(level="technology"))
-
-    # Calculate metric ranges
-    capacity_ranges = (
-        capacity.groupby(level=["region", "technology"])
-        .agg(["min", "max"])
-        .droplevel("region")
-    )
-
-    # Format y-axis
-    ax.set_ylabel("Normalised installed capacity", weight="bold")
-
-    # Format x-axis
-    ax.set_xlabel("")
-    ax.set_xticks(range(len(tech_labels)))
-    ax.set_xticklabels(tech_labels, fontsize=10)
-    xticklabels = []
-    _x = 0
-
-    for ticklabel in ax.get_xticklabels():
-        _tech = ticklabel.get_text()
-
-        # Format x-axis labels
-        capacity_range = capacity_ranges.loc[_tech].round(0).astype(int)
-        xticklabels.append(
-            f"{_tech}\n({capacity_range['min']} - {capacity_range['max']})\ngw"
-        )
-    ax.set_xticklabels(xticklabels, fontsize=9)
-
-    # Remove top and right spines
-    remove_top_and_right_spines(ax)
-
-
-def plot_capacity_pathway(power_capacity):
-    pass
 
 
 def plot_elbow_figure(wcss, min_clusters, max_clusters, spatial_resolution, year):
@@ -831,8 +512,8 @@ def plot_scenario_barchart_legend(ax, handles, labels, year, n_spores):
     ax.legend(
         handles,
         labels,
-        loc="upper left",
-        bbox_to_anchor=(0, 1),
+        loc="center left",
+        bbox_to_anchor=(0, 0.5),
         frameon=False,
         handler_map={
             proxy_spores_per_cluster: HandlerNumber(42),
@@ -846,7 +527,7 @@ def plot_scenario_analysis_barchart(
     scenario_description,
     n_spores_per_cluster,
     resolution,
-    value_to_plot="mean",
+    value_to_plot="median",
     years=["2030", "2050"],
 ):
     if resolution == "Europe":
@@ -865,7 +546,10 @@ def plot_scenario_analysis_barchart(
         # fig = plt.figure(figsize=(20, 11))
         fig = plt.figure(figsize=(2.5 * FIGWIDTH, 1.25 * FIGWIDTH * 9 / 16))
         gs = gridspec.GridSpec(
-            2, 2, height_ratios=[2, 18], width_ratios=[n_clusters_2030, n_clusters_2050]
+            2,
+            2,
+            height_ratios=[2, 18],
+            width_ratios=[n_clusters_2030, n_clusters_2050],
         )
 
         ax["title"] = plt.subplot(gs[0, 0], frameon=False)
@@ -935,8 +619,8 @@ def plot_scenario_analysis_barchart(
         ax["2050"].legend(
             handles,
             labels,
-            loc="upper left",
-            bbox_to_anchor=(1, 1),
+            loc="center left",
+            bbox_to_anchor=(1, 0.5),
             frameon=False,
             handler_map={
                 proxy_spores_per_cluster: HandlerNumber(42),
@@ -982,422 +666,9 @@ def plot_capacity_bar(
 
     ax.set_xticklabels([])
     ax.set_xticks([])
-    ax.set_ylabel("Average installed capacity [GW]", weight="bold")
+    ax.set_ylabel("Median installed capacity [GW]", weight="bold")
     # ax.set_ylim(ymax=prod_sum_max)
     ax.set_xlim((-0.5, 0.5))
     # handles, labels = ax.get_legend_handles_labels()
     ax.legend().set_visible(False)
     ax.set_xlabel("")
-
-
-def plot_scenario_analysis(
-    power_capacity,
-    paper_metrics,
-    spatial_resolution,
-    scenario_description,
-    scenario_number,
-    year,
-):
-    # FIXME: determine number of technologies and metrics dynamically
-    n_techs = 6
-    n_metrics = 5
-    n_total = n_techs + n_metrics
-    n_rows = 2
-    n_cols = 3
-    n_spores_per_cluster = count_spores_per_cluster(paper_metrics.get(year))
-    n_spores = n_spores_per_cluster.get(scenario_number)
-    n_spores_total = len(power_capacity.get(year).index.unique(level="spore"))
-
-    with sns.plotting_context("paper", font_scale=1.5):
-        ax = {}
-        fig = plt.figure(figsize=(20, 11))
-        gs = mpl.gridspec.GridSpec(
-            nrows=n_rows,
-            ncols=n_cols,
-            figure=fig,
-            hspace=0.1,
-            wspace=0.3,
-            width_ratios=[1, (n_techs / n_total) * 25, (n_metrics / n_total) * 25],
-            height_ratios=[2, 18],
-        )
-        _row = 0
-
-        # Plot figure title
-        ax["title"] = plt.subplot(gs[_row, :], frameon=False)
-        plot_title(
-            ax["title"],
-            title=f"{spatial_resolution} scenario {scenario_number}, {year} ({n_spores} / {n_spores_total} SPORES)",
-        )
-
-        # Plot capacity bar for focus scenario
-        ax["capacity_bar"] = plt.subplot(gs[1, 0], frameon=False)
-        plot_capacity_bar(
-            ax=ax["capacity_bar"],
-            scenario_description=scenario_description,
-            year=year,
-            focus_scenario=scenario_number,
-            value_to_plot="mean",
-        )
-
-        # Plot capacity distribution for focus scenario
-        ax["capacity_distribution"] = plt.subplot(gs[1, 1], frameon=True)
-        plot_capacity_distribution(
-            ax=ax["capacity_distribution"],
-            capacity=power_capacity.get(year),
-            year=year,
-            resolution=spatial_resolution,
-            focus_cluster=scenario_number,
-        )
-
-        # Plot metrics distribution for focus scenario
-        ax["metrics_distribution"] = plt.subplot(gs[1, 2], frameon=True)
-        plot_metrics_distribution(
-            ax=ax["metrics_distribution"],
-            metrics=paper_metrics.get(year),
-            year="2030",
-            focus_cluster=scenario_number,
-        )
-
-        plt.tight_layout(pad=1)
-        plt.savefig(
-            f"../figures/appendices/scenario_analysis/analysis_v0_{spatial_resolution}.png",
-            bbox_inches="tight",
-            dpi=120,
-        )
-
-
-def plot_scenario_analysis_v1(
-    power_capacity,
-    grid_capacity,
-    paper_metrics,
-    spatial_resolution,
-    scenario_description,
-    scenario_description_eu,
-    infeasible_european_scenarios,
-    n_spores_per_cluster_eu,
-    scenario_number,
-    year,
-    max_link_capacity,
-):
-    # FIXME: this data transformation is now done on multiple places --> do this in a more efficient way on a logical place
-    # See: plot_scenario_analysis_barchart
-    # See: plot_capacity_bar
-    scenario_values_eu = (
-        scenario_description_eu.get(year)
-        .loc[:, ["cluster", "technology", "mean"]]
-        .pivot_table(index="cluster", columns="technology")["mean"]
-    )
-
-    # FIXME: determine number of technologies and metrics dynamically
-    n_techs = 6
-    n_metrics = 5
-    n_total = n_techs + n_metrics
-    n_rows = 3
-    n_cols = 3
-    n_spores_per_cluster = count_spores_per_cluster(paper_metrics.get(year))
-    n_spores = n_spores_per_cluster.get(scenario_number)
-    n_spores_total = len(power_capacity.get(year).index.unique(level="spore"))
-
-    with sns.plotting_context("paper", font_scale=1.5):
-        ax = {}
-        fig = plt.figure(figsize=(2.5 * FIGWIDTH, 2.5 * FIGWIDTH * 9 / 16))
-        gs = mpl.gridspec.GridSpec(
-            nrows=n_rows,
-            ncols=n_cols,
-            figure=fig,
-            hspace=0.2,
-            wspace=0.4,
-            width_ratios=[1, 11, 12],
-            height_ratios=[2, 16, 16],
-        )
-        _row = 0
-        alpha_idx = 0
-
-        # Plot figure title
-        ax["title"] = plt.subplot(gs[0, :], frameon=False)
-        plot_title(
-            ax["title"],
-            title=f"{spatial_resolution} scenario {scenario_number}, {year} ({n_spores} / {n_spores_total} SPORES)",
-        )
-
-        # Plot capacity bar for focus scenario
-        ax["capacity_bar"] = plt.subplot(gs[1, 0], frameon=False)
-        plot_capacity_bar(
-            ax=ax["capacity_bar"],
-            scenario_description=scenario_description,
-            year=year,
-            focus_scenario=scenario_number,
-            value_to_plot="mean",
-        )
-
-        # Plot capacity distribution for focus scenario
-        ax["capacity_distribution"] = plt.subplot(gs[1, 1], frameon=True)
-        plot_capacity_distribution(
-            ax=ax["capacity_distribution"],
-            capacity=power_capacity.get(year),
-            year=year,
-            resolution=spatial_resolution,
-            focus_cluster=scenario_number,
-        )
-
-        # Plot metrics distribution for focus scenario
-        ax["metrics_distribution"] = plt.subplot(gs[1, 2], frameon=True)
-        plot_metrics_distribution(
-            ax=ax["metrics_distribution"],
-            metrics=paper_metrics.get(year),
-            year="2030",
-            focus_cluster=scenario_number,
-        )
-
-        # Plot European scenarios that are still possible in the given national scenario
-        ax["european_scenarios"] = plt.subplot(gs[2, 0:2], frameon=True)
-        plot_scenario_capacity_stacked_barchart(
-            scenario_values=scenario_values_eu,
-            n_spores_per_cluster=n_spores_per_cluster_eu.get(year),
-            year=year,
-            greyed_out_scenarios=infeasible_european_scenarios,
-            ax=ax["european_scenarios"],
-            spores_amount_y_offset=200,
-        )
-        ax["european_scenarios"].set_xlabel(
-            f"Scenarios, Europe ({year})", weight="bold"
-        )
-
-        # Plot power grid capacity map
-        ax["grid_capacity"] = plt.subplot(gs[2, 2], frameon=True)
-        # ax["grid_capacity"].text(
-        #     0.5, 0.5, "Grid Map", ha="center", va="center", fontsize=10
-        # )
-        plot_grid_capacity_map(
-            ax_map=ax["grid_capacity"],
-            grid_capacity=grid_capacity.get(year),
-            max_link_capacity=max_link_capacity,
-            focus_scenario=scenario_number,
-            spatial_resolution=spatial_resolution,
-        )
-
-        plt.tight_layout(pad=1)
-        plt.savefig(
-            f"../figures/appendices/scenario_analysis/v1/{spatial_resolution}_sc{scenario_number}_{year}.png",
-            bbox_inches="tight",
-            dpi=120,
-        )
-
-
-def plot_grid_capacity_map(
-    ax_map, grid_capacity, max_link_capacity, focus_scenario, spatial_resolution
-):
-    # Prepare data
-    scenario_description = grid_capacity.groupby(
-        ["importing_region", "exporting_region", "cluster"]
-    ).agg(["min", "median", "mean", "max"])
-    link_capacities = scenario_description.loc[
-        scenario_description.index.get_level_values("cluster") == focus_scenario
-    ].droplevel(level="cluster")
-    link_capacity_max = grid_capacity.max()
-    link_capacities_filtered = link_capacities.xs(
-        spatial_resolution, level="importing_region", drop_level=False
-    )
-
-    # Get countries and corresponding centroids
-    countries = gpd.read_file("../data/raw/europe-NUTS0.geojson")
-    countries["country_code"] = countries["country_code"].map(REGION_MAPPING)
-    countries["index"] = countries["country_code"]
-    countries = countries.set_index("index")
-
-    representative_points = countries.geometry.representative_point()
-
-    def _add_line(
-        ax, point_from, point_to, color, lw, dashes=(None, None), linestyle="-"
-    ):
-        ax.add_line(
-            mpl.lines.Line2D(
-                xdata=(point_from[0], point_to[0]),
-                ydata=(point_from[1], point_to[1]),
-                color=color,
-                lw=lw,
-                linestyle=linestyle,
-                dashes=dashes,
-            )
-        )
-
-    def _add_links(ax, link_caps, cap_max):
-        links_completed = []
-        for link in link_caps.index:
-            if sorted(link) in links_completed:  # every link comes up twice
-                continue
-
-            cap = link_caps.loc[link]
-            point_from = (
-                representative_points.loc[link[0]].x,
-                representative_points.loc[link[0]].y,
-            )
-            point_to = (
-                representative_points.loc[link[1]].x,
-                representative_points.loc[link[1]].y,
-            )
-            _add_line(ax, point_from, point_to, color="#a9a9a999", lw=0.5)
-            _add_line(ax, point_from, point_to, color="blue", lw=5 * cap / cap_max)
-
-            links_completed.append(sorted(link))
-
-    countries.plot(ax=ax_map, facecolor="#add8e6", edgecolor="white", linewidth=0.5)
-    _add_links(
-        ax_map,
-        link_capacities["mean"],
-        max_link_capacity,
-    )
-
-    ax_map.annotate(
-        f"",
-        fontweight="bold",
-        xy=(0.5, 1.1),
-        xycoords="axes fraction",
-        horizontalalignment="center",
-        fontsize="small",
-    )
-    ax_map.axis("off")
-
-
-def plot_scenario_analysis_v2(
-    power_capacity,
-    paper_metrics,
-    spatial_resolution,
-    scenario_description,
-    scenario_description_eu,
-    infeasible_european_scenarios,
-    n_spores_per_cluster_eu,
-    scenario_number,
-    year,
-    value_to_plot="median",
-):
-    # FIXME: this data transformation is now done on multiple places --> do this in a more efficient way on a logical place
-    # See: plot_scenario_analysis_barchart
-    # See: plot_capacity_bar
-    scenario_values_eu = (
-        scenario_description_eu.get(year)
-        .loc[:, ["cluster", "technology", value_to_plot]]
-        .pivot_table(index="cluster", columns="technology")[value_to_plot]
-    )
-
-    # FIXME: determine number of technologies and metrics dynamically
-    n_rows = 4
-    n_cols = 4
-    n_spores_per_cluster = count_spores_per_cluster(paper_metrics.get(year))
-    n_spores = n_spores_per_cluster.get(scenario_number)
-    n_spores_total = len(power_capacity.get(year).index.unique(level="spore"))
-
-    with sns.plotting_context("paper", font_scale=1.5):
-        ax = {}
-        fig = plt.figure(figsize=(2.5 * FIGWIDTH, 2.5 * FIGWIDTH * 9 / 16))
-        gs = mpl.gridspec.GridSpec(
-            nrows=n_rows,
-            ncols=n_cols,
-            figure=fig,
-            hspace=0.2,
-            wspace=0.4,
-            width_ratios=[1, 21, 5, 9],
-            height_ratios=[2, 16, 1, 16],
-        )
-        _row = 0
-        alpha_idx = 0
-
-        # Plot figure title
-        ax["title"] = plt.subplot(gs[0, :], frameon=False)
-        plot_title(
-            ax["title"],
-            title=f"{spatial_resolution} scenario {scenario_number}, {year} ({n_spores} / {n_spores_total} SPORES)",
-        )
-
-        # Plot capacity bar for focus scenario
-        ax["capacity_bar"] = plt.subplot(gs[1, 0], frameon=False)
-        plot_capacity_bar(
-            ax=ax["capacity_bar"],
-            scenario_description=scenario_description,
-            year=year,
-            focus_scenario=scenario_number,
-            value_to_plot=value_to_plot,
-        )
-        ax["capacity_bar"].annotate(
-            "A",
-            fontweight="bold",
-            xy=(0, 1.1),
-            xycoords="axes fraction",
-            horizontalalignment="left",
-            fontsize="small",
-        )
-
-        # Plot capacity distribution for focus scenario
-        ax["capacity_distribution"] = plt.subplot(gs[1, 1], frameon=True)
-        plot_capacity_distribution(
-            ax=ax["capacity_distribution"],
-            capacity=power_capacity.get(year),
-            year=year,
-            resolution=spatial_resolution,
-            focus_cluster=scenario_number,
-        )
-        ax["capacity_distribution"].annotate(
-            "B",
-            fontweight="bold",
-            xy=(0, 1.1),
-            xycoords="axes fraction",
-            horizontalalignment="left",
-            fontsize="small",
-        )
-
-        # Plot metrics distribution for focus scenario
-        ax["metrics_distribution"] = plt.subplot(gs[1, 2:], frameon=True)
-        plot_metrics_distribution(
-            ax=ax["metrics_distribution"],
-            metrics=paper_metrics.get(year),
-            year="2030",
-            focus_cluster=scenario_number,
-        )
-        ax["metrics_distribution"].annotate(
-            "C",
-            fontweight="bold",
-            xy=(0, 1.1),
-            xycoords="axes fraction",
-            horizontalalignment="left",
-            fontsize="small",
-        )
-
-        # Plot European scenarios that are still possible in the given national scenario
-        ax["european_scenarios"] = plt.subplot(gs[3, 0:2], frameon=True)
-        plot_scenario_capacity_stacked_barchart(
-            scenario_values=scenario_values_eu,
-            n_spores_per_cluster=n_spores_per_cluster_eu.get(year),
-            year=year,
-            greyed_out_scenarios=infeasible_european_scenarios,
-            ax=ax["european_scenarios"],
-            spores_amount_y_offset=200,
-        )
-        ax["european_scenarios"].set_xlabel(
-            f"Scenarios, Europe ({year})", weight="bold"
-        )
-        ax["european_scenarios"].annotate(
-            "D",
-            fontweight="bold",
-            xy=(0, 1.1),
-            xycoords="axes fraction",
-            horizontalalignment="left",
-            fontsize="small",
-        )
-        # Add legend
-        handles, labels = ax["european_scenarios"].get_legend_handles_labels()
-
-        ax["european_scenarios_legend"] = plt.subplot(gs[3, 2], frameon=False)
-        plot_scenario_barchart_legend(
-            ax=ax["european_scenarios_legend"],
-            handles=handles,
-            labels=labels,
-            year=year,
-            n_spores=n_spores_total,
-        )
-
-        plt.tight_layout(pad=1)
-        plt.savefig(
-            f"../figures/appendices/scenario_analysis/v2/{spatial_resolution}_sc{scenario_number}_silhouette_{year}.png",
-            bbox_inches="tight",
-            dpi=120,
-        )
