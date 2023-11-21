@@ -2,13 +2,17 @@ This project is a MSc thesis project of Giel van der Weerd to obtain a MSc degre
 
 Data obtained from:
 -
-2050 spores data downloaded from:\
+Only data in processed format is provided in this repository. Sources to obtain raw data are listed below.
+
+- SPORES (2050) data downloaded from:\
 https://zenodo.org/record/6546817
 
-geographical units "eurospores_units.geojson" obtained from:\
+- SPORES (2030) data is not yet made publicly accessible.
+
+- geographical units "eurospores_units.geojson" obtained from:\
 https://zenodo.org/record/6655601
 
-historic capacity data obtained from:\
+- historic capacity data obtained from:\
 https://pxweb.irena.org/pxweb/en/IRENASTAT \
 https://ember-climate.org/data/data-tools/data-explorer/ 
 
